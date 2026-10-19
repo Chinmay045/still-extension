@@ -69,7 +69,11 @@ main:focus { outline: none; }
 .intent { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 32px; align-items: end; }
 .lead { margin: 0; font-size: 17px; line-height: 1.65; max-width: 440px; }
 
-/* Before / after slider */
+/* Before / after slider: heading + full slider fit one screen below the sticky nav */
+#compare { --vs-w: min(100%, calc((100vh - 196px) * 1.5)); padding-top: 32px; scroll-margin-top: 68px; }
+#compare .sec-head, #compare .vs { width: var(--vs-w); margin-left: auto; margin-right: auto; }
+#compare .sec-head { margin-bottom: 18px; }
+#compare .big { font-size: clamp(32px, 4vw, 48px); }
 .vs { --split: 80%; position: relative; aspect-ratio: 3 / 2; border-radius: 28px; overflow: hidden; box-shadow: 0 30px 80px rgba(0, 0, 0, 0.12); user-select: none; background: #121318; }
 .vs-before, .vs-after { position: absolute; top: 0; bottom: 0; overflow: hidden; }
 .vs-before { left: 0; width: var(--split); }
