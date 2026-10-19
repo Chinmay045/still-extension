@@ -72,7 +72,7 @@ export function uid() {
 }
 
 export async function getAll() {
-  const r = await chrome.storage.local.get(['settings', 'prefs', 'session', 'parked', 'lastSummary', 'calendar', 'history', 'seenWelcome', 'block', 'wallet', 'pledges', 'calEvents']);
+  const r = await chrome.storage.local.get(['settings', 'prefs', 'session', 'parked', 'lastSummary', 'calendar', 'history', 'seenWelcome', 'block', 'wallet', 'pledges', 'calEvents', 'progress']);
   return {
     settings: Object.assign({}, DEFAULT_SETTINGS, r.settings || {}),
     prefs: Object.assign({}, DEFAULT_PREFS, r.prefs || {}),
@@ -85,7 +85,8 @@ export async function getAll() {
     block: r.block || null,
     wallet: r.wallet || { signedIn: false, email: '', balancePaise: 0, txns: [] },
     pledges: r.pledges || {},
-    calEvents: r.calEvents || {}
+    calEvents: r.calEvents || {},
+    progress: r.progress || null
   };
 }
 

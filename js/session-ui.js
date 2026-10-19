@@ -1,9 +1,25 @@
 // In-session controls: timer with -5 / +5, music, Park a thought, Exit focus.
 import { send, fmtClock, esc, SOUNDS } from './lib.js';
+import { summarize, localOffset, SCORING } from './progress.js';
 
 export function mountSession(el) {
   let session = null;
   let shortcut = 'Alt+P';
+  let progressText = '';
+  // A quiet line under the timer: the streak and today's points, nothing more.
+  const loadProgress = async () => {
+    const { progress } = await chrome.storage.local.get('progress');
+    const now = Date.now();
+    const p = summarize(progress, now, localOffset(now));
+    progressText = p.currentStreak
+      ? p.currentStreak + '-day streak · ' + p.todayPoints + ' points today'
+      : 'Finish ' + SCORING.minEligibleMinutes + ' minutes or more to start a streak';
+    const el2 = el.querySelector('.s-progress');
+    if (el2) el2.textContent = progressText;
+  };
+  loadProgress();
+  const onStore = (c, area) => { if (area === 'local' && c.progress) loadProgress(); };
+  chrome.storage.onChanged.addListener(onStore);
   chrome.commands.getAll().then((cmds) => {
     const c = cmds.find((x) => x.name === 'park-thought');
     if (c && c.shortcut) { shortcut = c.shortcut; render(); }
@@ -32,6 +48,7 @@ export function mountSession(el) {
           </div>
         </div>
         ${session.phase !== 'working' ? '<span class="s-phase">Waiting in the focus circle. The timer starts when you click it.</span>' : ''}
+        <span class="s-progress">${esc(progressText)}</span>
       </div>
       <div class="s-sec">
         <span class="label">Music</span>
@@ -70,6 +87,6 @@ export function mountSession(el) {
       if (changed) render();
       else { const c = el.querySelector('.s-clock'); if (c) c.textContent = clockText(); }
     },
-    destroy() { clearInterval(tick); }
+    destroy() { clearInterval(tick); chrome.storage.onChanged.removeListener(onStore); }
   };
 }

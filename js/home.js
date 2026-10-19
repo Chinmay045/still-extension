@@ -1,10 +1,11 @@
 import { GOOGLE_CLIENT_ID, WALLET_API, PLEDGES, CHARITIES, rupees, pledgeArmed, getAll, patch, send, esc, stillify, fmtWhen, fmtTime, ageDays, normalizeDomain, reducedMotion, KINDS, SOUNDS, THEMES } from './lib.js';
 import { mountVolume } from './volume.js';
+import { SCORING, summarize, encouragement, localOffset } from './progress.js';
 import { mountSession } from './session-ui.js';
 import { SoundEngine } from './audio.js';
 
 const $ = (id) => document.getElementById(id);
-const VIEWS = ['dashboard', 'home', 'setup', 'bucket', 'settings', 'summary'];
+const VIEWS = ['dashboard', 'home', 'setup', 'bucket', 'insights', 'settings', 'summary'];
 let state = await getAll();
 let reviewed = 0;
 
@@ -35,6 +36,7 @@ function renderView(name) {
   if (name === 'setup') renderSetup();
   if (name === 'bucket') renderBucket();
   if (name === 'settings') renderSettings();
+  if (name === 'insights') renderInsights();
   if (name === 'summary') renderSummary();
 }
 
@@ -160,7 +162,10 @@ function renderDashboard() {
     ? row('Focusing on ' + esc(session.task), session.phase === 'working' ? 'Ends at ' + fmtTime(session.endsAt) : 'Waiting in the focus circle', '<a class="btn btn-sm" href="#setup">Open session</a>')
     : row('No session running', 'Name one task and pick how long.', '<a class="btn btn-sm btn-primary" href="#setup">Set up a session</a>');
 
+  const pr = progressNow();
   const focusRows =
+    row(streakLabel(pr.currentStreak), esc(encouragement(pr)), `<a class="btn btn-sm" href="#insights">Insights</a>`) +
+    row('Points today', pr.totalPoints + ' points all time', `<span class="dash-val">${pr.todayPoints}</span>`) +
     row('Focus time today', today.length + (today.length === 1 ? ' session' : ' sessions'), `<span class="dash-val">${minutesLabel(sum(today, 'minutesFocused'))}</span>`) +
     row('This week', week.length + (week.length === 1 ? ' session' : ' sessions') + ' in the last 7 days', `<span class="dash-val">${minutesLabel(sum(week, 'minutesFocused'))}</span>`) +
     row('Distractions stopped this week', 'Times a blocked site tried to pull you away', `<span class="dash-val">${sum(week, 'impulses')}</span>`) +
@@ -745,6 +750,15 @@ chrome.commands.getAll().then((cmds) => {
 
 // ---------- summary ----------
 
+function progressNow() {
+  const now = Date.now();
+  return summarize(state.progress, now, localOffset(now));
+}
+
+function streakLabel(n) {
+  return n ? n + '-day streak' : 'No streak yet';
+}
+
 function renderSummary() {
   const s = state.lastSummary;
   if (!s) {
@@ -752,15 +766,33 @@ function renderSummary() {
     return;
   }
   const done = s.reason === 'timeup';
+  const earned = done && s.eligible && s.points > 0;
+  const pr = progressNow();
+  // Points only show for sessions that can earn them; older summaries have no points field.
+  const pointsNote = !('points' in s) ? ''
+    : earned ? ''
+    : done ? 'Sessions under ' + SCORING.minEligibleMinutes + ' minutes don’t earn points. Anything you’ve already earned stays.'
+    : 'Ended early, so no points this time. Anything you’ve already earned stays.';
+  const mark = earned
+    ? `<svg class="done-mark" viewBox="0 0 80 80" aria-hidden="true"><defs><linearGradient id="dm-g" x1="0" x2="1"><stop offset="0" stop-color="#8B3DFF"/><stop offset="1" stop-color="#D63DD0"/></linearGradient></defs><circle class="dm-track" cx="40" cy="40" r="34"/><circle class="dm-ring" cx="40" cy="40" r="34"/><path class="dm-check" d="M27 41l9 9 17-19"/></svg>`
+    : '<img src="assets/ring.png" alt="">';
+  const progressRows = earned
+    ? `<div class="card dash-list sum-progress">
+        ${row('Points earned', s.scoredMinutes + ' minutes completed', `<span class="dash-val pts">+${s.points}</span>`)}
+        ${row(streakLabel(pr.currentStreak), esc(encouragement(pr)), '')}
+        ${row('Today', pr.totalPoints + ' points all time', `<span class="dash-val">${pr.todayPoints}</span>`)}
+      </div>`
+    : pointsNote ? `<p class="muted small sum-note">${pointsNote}</p>` : '';
   $('summary').innerHTML = `
     <div class="stack-lg">
       <div class="sum-head">
-        <img src="assets/ring.png" alt="">
+        ${mark}
         <h1>${done ? 'Time. Nicely done.' : 'Session ended.'}</h1>
         <div class="sum-task">${esc(s.task)}</div>
         <div class="sum-num" aria-label="${s.minutesFocused} minutes focused"><span class="sum-big">${s.minutesFocused}</span><span class="sum-unit">min</span></div>
         <span class="muted">focused${s.plannedMin ? ' of ' + s.plannedMin + ' planned' : ''}</span>
       </div>
+      ${progressRows}
       <div class="stats">
         ${s.blocked.length ? `<div class="stat"><b>${s.blocked.length}</b><span>Sites blocked</span></div>
         <div class="stat"><b>${s.impulses}</b><span>Impulses blocked</span></div>
@@ -769,10 +801,67 @@ function renderSummary() {
       </div>
       ${s.blocked.length ? `<div class="sum-sites">${s.blocked.map(esc).join(' · ')}</div>` : ''}
       <div class="sum-actions">
-        <a class="btn" href="#bucket">Review bucket</a>
         <a class="btn btn-primary" href="#setup">Start another</a>
+        <a class="btn" href="#dashboard">Back to dashboard</a>
+        ${s.parkedCount ? '<a class="btn btn-ghost" href="#bucket">Review bucket</a>' : ''}
       </div>
     </div>`;
+}
+
+// ---------- insights ----------
+
+const WEEKDAY = (key) => new Date(key + 'T12:00:00Z').toLocaleDateString([], { weekday: 'short', timeZone: 'UTC' });
+const LONGDAY = (key) => new Date(key + 'T12:00:00Z').toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric', timeZone: 'UTC' });
+
+function renderInsights() {
+  const pr = progressNow();
+  $('ins-line').textContent = encouragement(pr);
+  const days = (n) => n + (n === 1 ? ' day' : ' days');
+  const max = Math.max(SCORING.minEligibleMinutes * 3, ...pr.week.map((d) => d.minutes));
+  const bars = pr.week.map((d) => {
+    const h = d.minutes ? Math.max(6, Math.round((d.minutes / max) * 100)) : 0;
+    const tip = LONGDAY(d.key) + ': ' + (d.minutes ? d.minutes + ' min, ' + d.points + ' points, ' + d.sessions + (d.sessions === 1 ? ' session' : ' sessions') : 'no focus sessions');
+    return `<div class="wk-col${d.today ? ' today' : ''}" tabindex="0" data-tip="${esc(tip)}" aria-label="${esc(tip)}">
+      <div class="wk-plot">${h ? `<div class="wk-bar" style="height:${h}%"></div>` : '<div class="wk-zero"></div>'}</div>
+      <span class="wk-day">${d.today ? 'Today' : WEEKDAY(d.key)}</span>
+    </div>`;
+  }).join('');
+  const table = `<table class="sr-only"><caption>Focus minutes for the last 7 days</caption><thead><tr><th>Day</th><th>Minutes</th><th>Points</th></tr></thead><tbody>${pr.week.map((d) => `<tr><td>${LONGDAY(d.key)}</td><td>${d.minutes}</td><td>${d.points}</td></tr>`).join('')}</tbody></table>`;
+  const weekLine = pr.weekMinutes
+    ? pr.weekMinutes + ' focused minutes across ' + days(pr.weekDays) + ' in the last 7 days.'
+    : 'No completed sessions in the last 7 days yet.';
+  $('insights').innerHTML =
+    group('Your progress',
+      row('Total points', 'One point per focused minute', `<span class="dash-val">${pr.totalPoints}</span>`) +
+      row('Current streak', pr.doneToday ? 'Today already counts.' : pr.currentStreak ? 'Finish a session today to keep it going.' : 'Starts with your next completed session.', `<span class="dash-val">${days(pr.currentStreak)}</span>`) +
+      row('Longest streak', 'Your best run of days in a row', `<span class="dash-val">${days(pr.longestStreak)}</span>`) +
+      row('Focus days', 'Days with at least one completed session', `<span class="dash-val">${pr.focusDays}</span>`)) +
+    `<section class="dash-group"><h2 class="h2">This week</h2><div class="card pad wk">
+      <p class="muted small wk-line">${weekLine}</p>
+      <div class="wk-chart" role="img" aria-label="Focus minutes per day for the last 7 days">${bars}</div>
+      <div class="wk-tip" id="wk-tip" hidden></div>
+      ${table}
+    </div></section>` +
+    group('How points work',
+      row('1 point per minute', 'Earned when a session’s timer runs out. A 25-minute session earns 25.', '') +
+      row(SCORING.minEligibleMinutes + ' minutes or more', 'Shorter sessions are welcome but don’t earn points or count toward a streak.', '') +
+      row('Nothing is taken away', 'Ending early earns nothing for that session. Points you have stay yours.', '') +
+      row('Streaks count calendar days', 'A session counts for the day its timer started, in your local time.', ''));
+}
+
+$('insights').addEventListener('pointerover', (e) => showTip(e.target.closest('.wk-col')));
+$('insights').addEventListener('focusin', (e) => showTip(e.target.closest('.wk-col')));
+$('insights').addEventListener('pointerleave', () => showTip(null));
+$('insights').addEventListener('focusout', () => showTip(null));
+function showTip(col) {
+  const tip = $('wk-tip');
+  if (!tip) return;
+  if (!col) { tip.hidden = true; return; }
+  tip.textContent = col.dataset.tip;
+  tip.hidden = false;
+  const box = col.parentElement.getBoundingClientRect();
+  const c = col.getBoundingClientRect();
+  tip.style.left = Math.min(Math.max(0, c.left - box.left + c.width / 2 - tip.offsetWidth / 2), box.width - tip.offsetWidth) + 'px';
 }
 
 // ---------- live updates ----------
@@ -792,7 +881,9 @@ chrome.storage.onChanged.addListener(async (changes, area) => {
   if (changes.parked && v === 'bucket') renderBucket();
   if (v === 'dashboard' && (changes.session || changes.parked || changes.calendar || changes.calEvents || changes.settings || changes.history || changes.block || changes.wallet || changes.pledges)) renderDashboard();
   if ((changes.calendar || changes.settings || changes.block || changes.wallet) && v === 'settings') renderSettings();
-  if (changes.lastSummary && v === 'summary') renderSummary();
+  if ((changes.lastSummary || changes.progress) && v === 'summary') renderSummary();
+  if (changes.progress && v === 'insights') renderInsights();
+  if (changes.progress && v === 'dashboard') renderDashboard();
   if (changes.prefs && v === 'setup' && !state.session) renderSetup();
 });
 

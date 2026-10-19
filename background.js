@@ -2,6 +2,7 @@
 // capture window, toolbar badge, audio routing and calendar nudges.
 // The focus session (circle + timer) only primes the mind and never blocks.
 // Sites are blocked from a synced calendar task's start to its end.
+import { applySession, localOffset } from './js/progress.js';
 import { getAll, patch, kindOf, uid, normalizeDomain, fmtTime, rupees, pledgeArmed, GOOGLE_CLIENT_ID, WALLET_API } from './js/lib.js';
 
 const CAPTURE_SIZE = 288;
@@ -258,7 +259,24 @@ async function setVolume(volume) {
   return session;
 }
 
-async function endSession(reason, opts) {
+// The session-end alarm and the wake-up check can both try to end the same session.
+// Running ends one at a time means the second one finds no session and does nothing.
+let ending = Promise.resolve();
+function endSession(reason, opts) {
+  const run = ending.then(() => endSessionNow(reason, opts));
+  ending = run.catch(() => {});
+  return run;
+}
+
+// Points come only from here, from the stored session, never from page state.
+// applySession ignores a session id it has already seen, so a repeat is harmless.
+async function scorePoints(session, reason) {
+  const { progress } = await chrome.storage.local.get('progress');
+  const offset = localOffset(session.startedAt || Date.now());
+  return applySession(progress, session, reason, offset);
+}
+
+async function endSessionNow(reason, opts) {
   const { session, settings } = await getAll();
   chrome.alarms.clear('session-end');
   if (!session) return null;
@@ -273,12 +291,16 @@ async function endSession(reason, opts) {
     overrides: session.overrides,
     parkedCount: session.parkedCount,
     endedAt: now,
-    reason
+    reason,
+    sessionId: session.id
   };
   if (session.phase === 'working') {
+    const { progress, result } = await scorePoints(session, reason);
+    if (result) Object.assign(summary, { points: result.points, eligible: result.eligible, scoredMinutes: result.minutes });
     const { history } = await chrome.storage.local.get('history');
     const log = (history || []).concat(summary).slice(-300);
-    await chrome.storage.local.set({ session: null, lastSummary: summary, history: log });
+    // One write: the points and the end of the session land together or not at all.
+    await chrome.storage.local.set({ session: null, lastSummary: summary, history: log, progress });
   } else {
     // Left from the circle before starting: nothing to log.
     await chrome.storage.local.set({ session: null });

@@ -1,11 +1,12 @@
 import { getAll, send, esc, fmtTime, SOUNDS } from './lib.js';
+import { summarize, localOffset, SCORING } from './progress.js';
 
 const $ = (id) => document.getElementById(id);
 const PRESETS = [5, 10, 15, 25];
 const SHORT = { ambient: 'Ambient', gamma: 'Gamma 40 Hz', beta: 'Beta pulse', cafe: 'Cafe', off: 'Silence' };
 let leaving = false;
 
-let { session, settings, calendar } = await getAll();
+let { session, settings, calendar, progress } = await getAll();
 if (!session) {
   location.replace('home.html');
 } else {
@@ -16,6 +17,10 @@ if (!session) {
   $('meta').textContent = next && settings.calendarBlock
     ? 'Sites get blocked when ' + next.title + ' starts at ' + fmtTime(next.start) + '.'
     : 'Nothing is blocked while you get ready.';
+  const pr = summarize(progress, Date.now(), localOffset(Date.now()));
+  $('streak').textContent = pr.currentStreak
+    ? pr.currentStreak + '-day streak · ' + pr.todayPoints + ' points today'
+    : 'Finish ' + SCORING.minEligibleMinutes + ' minutes or more to start a streak.';
   $('vol').value = session.volume;
   render();
 
