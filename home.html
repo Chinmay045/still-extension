@@ -221,6 +221,30 @@
     <div class="toggle-row"><div><b id="t-dim-l">Dim the circle after 9 pm</b><span class="muted small">Easier on the eyes at night.</span></div><button class="switch" role="switch" data-toggle="nightDim" aria-labelledby="t-dim-l"></button></div>
   </div>
 
+  <div class="card pad set-sec" id="wallet">
+    <h2 class="h2">Focus wallet</h2>
+    <p class="muted small">Put money on your calendar tasks. Break a task by opening a blocked site and its pledge leaves your prepaid wallet for charity. Keep it and nothing is taken.</p>
+    <div class="int-row">
+      <div><b id="wallet-title">Not signed in</b><span class="muted small" id="wallet-state"></span></div>
+      <div class="int-actions" id="wallet-actions"></div>
+    </div>
+    <p class="err small" id="wallet-err" hidden></p>
+    <div class="cal-setup" id="wallet-setup" hidden>
+      <b>Wallet server address</b>
+      <span class="muted small">The address of the deployed wallet app from the <code>backend</code> folder, like https://still-wallet.vercel.app</span>
+      <div class="add-row">
+        <input class="input" id="wallet-api" placeholder="https://still-wallet.vercel.app" autocomplete="off" aria-label="Wallet server address">
+        <button type="button" class="btn btn-primary" id="wallet-api-save">Save</button>
+      </div>
+    </div>
+    <span class="label" id="pledge-label">Pledge per calendar task</span>
+    <div class="seg" role="radiogroup" aria-labelledby="pledge-label" id="pledge-seg"></div>
+    <span class="muted small">Change it for a single task on the Dashboard.</span>
+    <span class="label" id="charity-label">Broken pledges go to</span>
+    <div class="seg" role="radiogroup" aria-labelledby="charity-label" id="charity-seg"></div>
+    <span class="muted small">Recorded for now. Payouts to the charity come later.</span>
+  </div>
+
   <div class="card pad set-sec" id="integrations">
     <h2 class="h2">Integrations</h2>
     <div class="int-row">

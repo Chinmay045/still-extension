@@ -1,4 +1,4 @@
-import { GOOGLE_CLIENT_ID, getAll, patch, send, esc, stillify, fmtWhen, fmtTime, ageDays, normalizeDomain, reducedMotion, KINDS, SOUNDS, THEMES } from './lib.js';
+import { GOOGLE_CLIENT_ID, WALLET_API, PLEDGES, CHARITIES, rupees, pledgeArmed, getAll, patch, send, esc, stillify, fmtWhen, fmtTime, ageDays, normalizeDomain, reducedMotion, KINDS, SOUNDS, THEMES } from './lib.js';
 import { mountVolume } from './volume.js';
 import { mountSession } from './session-ui.js';
 import { SoundEngine } from './audio.js';
@@ -28,6 +28,8 @@ function route() {
 }
 
 function renderView(name) {
+  const w = state.wallet;
+  if ((name === 'dashboard' || name === 'settings') && w.signedIn && !(Date.now() - (w.lastSync || 0) < 60000)) send('walletRefresh');
   if (name === 'dashboard') renderDashboard();
   if (name === 'home') renderHome();
   if (name === 'setup') renderSetup();
@@ -177,9 +179,11 @@ function renderDashboard() {
 
   const sites = settings.sites || [];
   const blockRows =
-    (state.block ? row('Blocking now', esc(state.block.title) + ' runs until ' + fmtTime(state.block.end), '<button class="btn btn-sm btn-ghost" type="button" data-dash="unblock">Stop</button>') : '') +
+    (state.block ? row('Blocking now', esc(state.block.title) + ' runs until ' + fmtTime(state.block.end) + (pledgeArmed(state.block) ? ' · ' + rupees(state.block.pledge * 100) + ' on the line' : ''), stopButton('btn-ghost')) : '') +
     row(sites.length + (sites.length === 1 ? ' site blocked' : ' sites blocked') + ' during calendar tasks', sites.length ? sites.map(esc).join(', ') : 'Add the sites that pull you away most.', '<a class="btn btn-sm" href="#settings">Edit</a>') +
     row('"Open anyway" wait', settings.overrideWait + ' seconds before a blocked site opens once', '');
+
+  const walletRows = renderWalletRows();
 
   const recent = history.slice(-5).reverse();
   const recentRows = recent.length
@@ -192,14 +196,96 @@ function renderDashboard() {
     group('Bucket', bucketRows) +
     group('Google account', accountRows) +
     group('Blocking', blockRows) +
+    group('Focus wallet', walletRows) +
     group('Recent sessions', recentRows);
 }
+
+function walletReady() {
+  return !!(state.settings.walletApi || WALLET_API);
+}
+
+function pledgeSelect(eventId, value) {
+  const opts = PLEDGES.map((p) => `<option value="${p}"${p === value ? ' selected' : ''}>${p ? rupees(p * 100) : 'No pledge'}</option>`).join('');
+  return `<select class="pledge-pick" data-pledge-event="${esc(eventId)}" aria-label="Pledge for this task">${opts}</select>`;
+}
+
+function renderWalletRows() {
+  const { wallet, settings, pledges, block } = state;
+  if (!walletReady()) {
+    return row('Put money on your tasks', 'Pledge a small amount on each calendar task. Needs the wallet server set up once.', '<a class="btn btn-sm" href="#settings" data-goto="wallet">Set up</a>');
+  }
+  if (!wallet.signedIn) {
+    return row('Put money on your tasks', 'Sign in to your prepaid wallet, add money, and pledge it on each calendar task.', '<button class="btn btn-sm btn-google" type="button" data-wallet="signin"><span class="g-mark" aria-hidden="true">G</span>Sign in with Google</button>');
+  }
+  const now = Date.now();
+  const { calEvents } = state;
+  const upcoming = Object.values(calEvents || {}).filter((e) => e.end > now && !(block && block.eventId === e.id)).sort((a, b) => a.start - b.start).slice(0, 4);
+  const pick = (e) => (e.id in pledges ? Number(pledges[e.id]) : Number(settings.pledge));
+  const forfeits = (wallet.txns || []).filter((t) => t.kind === 'forfeit').slice(0, 3);
+  return row('Balance', wallet.email ? 'Signed in as ' + esc(wallet.email) : 'Prepaid, test mode', `<span class="dash-val">${rupees(wallet.balancePaise)}</span>`) +
+    row('Add money', 'UPI or card through Razorpay, on the wallet page.', '<button class="btn btn-sm" type="button" data-wallet="open">Add money</button>') +
+    (block ? row(esc(block.title) + ' (now)', pledgeArmed(block) ? rupees(block.pledge * 100) + ' on the line until ' + fmtTime(block.end) : block.forfeited ? 'Broken. ' + rupees(block.pledge * 100) + ' set aside for ' + esc(block.charity) : 'No pledge on this task', '') : '') +
+    (upcoming.length
+      ? upcoming.map((e) => row(esc(e.title), fmtWhen(e.start) + ' to ' + fmtTime(e.end), pledgeSelect(e.id, pick(e)))).join('')
+      : row('No calendar tasks coming up', 'New tasks get ' + (settings.pledge ? rupees(settings.pledge * 100) : 'no pledge') + ' unless you change it here.', '<a class="btn btn-sm" href="#settings" data-goto="wallet">Default</a>')) +
+    forfeits.map((t) => row('Broke ' + esc(t.task_title || 'a task'), fmtWhen(Date.parse(t.created_at)) + ' · ' + esc(t.charity || ''), `<span class="dash-val minus">−${rupees(t.amount_paise)}</span>`)).join('');
+}
+
+// Stopping a pledged block early costs the pledge, so the button says so and asks twice.
+function stopButton(extra) {
+  const b = state.block;
+  const label = pledgeArmed(b) ? 'Stop and lose ' + rupees(b.pledge * 100) : 'Stop';
+  return `<button class="btn btn-sm ${extra || ''}" type="button" data-stop="1">${label}</button>`;
+}
+
+async function stopClicked(b) {
+  b.disabled = true;
+  const res = await send('stopBlock', { forfeit: b.dataset.confirm === '1' });
+  b.disabled = false;
+  if (res && res.needsConfirm) {
+    b.dataset.confirm = '1';
+    b.textContent = 'Tap again to lose ' + rupees(res.pledge * 100);
+    b.classList.add('btn-lose');
+  } else if (res && res.ok === false) {
+    toast(res.code === 'insufficient' ? 'Your wallet is too low to cover the pledge.' : 'Could not reach your wallet. Nothing was taken.');
+  }
+}
+
+async function walletAction(kind, b) {
+  $('wallet-err').hidden = true;
+  if (b) b.disabled = true;
+  const res = await send({ signin: 'walletSignIn', signout: 'walletSignOut', open: 'walletOpen', refresh: 'walletRefresh' }[kind]);
+  if (b) b.disabled = false;
+  if (res && res.ok === false) {
+    if (current() === 'settings') {
+      $('wallet-err').textContent = 'Could not ' + (kind === 'signin' ? 'sign in' : 'reach your wallet') + ' (' + res.error + ').';
+      $('wallet-err').hidden = false;
+    } else toast(res.error);
+  }
+}
+
+document.addEventListener('click', (e) => {
+  const s = e.target.closest('[data-stop]');
+  if (s) return stopClicked(s);
+  const w = e.target.closest('[data-wallet]');
+  if (w) return walletAction(w.dataset.wallet, w);
+  const g = e.target.closest('[data-goto]');
+  if (g) setTimeout(() => $(g.dataset.goto).scrollIntoView({ block: 'center' }), 50);
+});
+
+document.addEventListener('change', async (e) => {
+  const sel = e.target.closest('[data-pledge-event]');
+  if (!sel) return;
+  const pledges = Object.assign({}, state.pledges, { [sel.dataset.pledgeEvent]: Number(sel.value) });
+  await chrome.storage.local.set({ pledges });
+  toast(Number(sel.value) ? rupees(sel.value * 100) + ' pledged on this task.' : 'No pledge on this task.');
+});
 
 $('dash').addEventListener('click', async (e) => {
   const b = e.target.closest('[data-dash]');
   if (!b) return;
   b.disabled = true;
-  const res = await send({ connect: 'calConnect', unblock: 'endBlock' }[b.dataset.dash] || 'calDisconnect');
+  const res = await send({ connect: 'calConnect' }[b.dataset.dash] || 'calDisconnect');
   b.disabled = false;
   if (res && res.ok === false) {
     toast('Could not connect. Opening Settings to try again.');
@@ -493,9 +579,11 @@ function renderSettings() {
   $('block-state').textContent = blk
     ? 'Blocking now for ' + blk.title + ', until ' + fmtTime(blk.end) + '.'
     : calendar.connected ? 'On from the start to the end of each event.' : 'Connect Google Calendar below to turn this on.';
+  if (pledgeArmed(blk)) $('block-state').textContent += ' ' + rupees(blk.pledge * 100) + ' is pledged, so blocking runs to the end even if you switch it off.';
   $('block-actions').innerHTML = blk
-    ? '<button class="btn btn-sm" type="button" data-blk="stop">Stop blocking now</button>'
+    ? stopButton()
     : '<button class="btn btn-sm" type="button" data-blk="test">Test blocking for 2 minutes</button>';
+  renderWalletSettings();
   setRadio('[data-lead]', 'lead', settings.nudgeLeadMin);
   document.querySelectorAll('[data-toggle]').forEach((b) => b.setAttribute('aria-checked', String(!!settings[b.dataset.toggle])));
 
@@ -512,6 +600,55 @@ function renderSettings() {
   if (calendar.connected) $('cal-setup').hidden = true;
   if (document.activeElement !== $('client-id')) $('client-id').value = settings.googleClientId || '';
 }
+
+function renderWalletSettings() {
+  const { wallet, settings } = state;
+  const ready = walletReady();
+  $('wallet-setup').hidden = !!WALLET_API;
+  if (document.activeElement !== $('wallet-api')) $('wallet-api').value = settings.walletApi || '';
+  if (!ready) {
+    $('wallet-title').textContent = 'Not set up';
+    $('wallet-state').textContent = 'Add the wallet server address below to turn this on.';
+    $('wallet-actions').innerHTML = '';
+  } else if (!wallet.signedIn) {
+    $('wallet-title').textContent = 'Not signed in';
+    $('wallet-state').textContent = 'Use the same Google account you top up with.';
+    $('wallet-actions').innerHTML = '<button class="btn btn-sm btn-google" data-wallet="signin"><span class="g-mark" aria-hidden="true">G</span>Sign in with Google</button>';
+  } else {
+    $('wallet-title').textContent = 'Balance ' + rupees(wallet.balancePaise);
+    $('wallet-state').textContent = 'Signed in as ' + (wallet.email || 'you') + '. Test mode, no real money.';
+    $('wallet-actions').innerHTML = '<button class="btn btn-sm" data-wallet="open">Add money</button><button class="btn btn-sm" data-wallet="refresh">Refresh</button><button class="btn btn-sm btn-ghost" data-wallet="signout">Sign out</button>';
+  }
+  if (!$('pledge-seg').children.length) {
+    $('pledge-seg').innerHTML = PLEDGES.map((p) => `<button type="button" role="radio" data-pledge="${p}">${p ? rupees(p * 100) : 'Off'}</button>`).join('');
+    $('charity-seg').innerHTML = CHARITIES.map((c) => `<button type="button" role="radio" data-charity="${esc(c)}">${esc(c)}</button>`).join('');
+  }
+  setRadio('[data-pledge]', 'pledge', settings.pledge);
+  setRadio('[data-charity]', 'charity', settings.charity);
+}
+
+$('pledge-seg').addEventListener('click', async (e) => {
+  const b = e.target.closest('[data-pledge]');
+  if (b) { state.settings = await patch('settings', { pledge: Number(b.dataset.pledge) }); renderSettings(); }
+});
+radioKeys($('pledge-seg'), '[data-pledge]');
+$('charity-seg').addEventListener('click', async (e) => {
+  const b = e.target.closest('[data-charity]');
+  if (b) { state.settings = await patch('settings', { charity: b.dataset.charity }); renderSettings(); }
+});
+radioKeys($('charity-seg'), '[data-charity]');
+$('wallet-api-save').addEventListener('click', async () => {
+  const v = $('wallet-api').value.trim().replace(/\/+$/, '');
+  if (v && !/^https?:\/\/[^\s]+$/.test(v)) {
+    $('wallet-err').textContent = 'That does not look like a web address. It should start with https://';
+    $('wallet-err').hidden = false;
+    return;
+  }
+  state.settings = await patch('settings', { walletApi: v });
+  await chrome.storage.session.remove('walletCfg');
+  toast(v ? 'Saved. Now sign in to your wallet.' : 'Wallet server cleared.');
+  renderSettings();
+});
 
 $('ow-seg').addEventListener('click', async (e) => {
   const b = e.target.closest('[data-ow]');
@@ -536,7 +673,7 @@ $('block-actions').addEventListener('click', async (e) => {
   const b = e.target.closest('[data-blk]');
   if (!b) return;
   b.disabled = true;
-  await send(b.dataset.blk === 'test' ? 'testBlock' : 'endBlock');
+  await send('testBlock');
   if (b.dataset.blk === 'test') toast('Blocking for 2 minutes. Try opening youtube.com.');
 });
 $('cal-actions').addEventListener('click', async (e) => {
@@ -652,8 +789,8 @@ chrome.storage.onChanged.addListener(async (changes, area) => {
     }
   }
   if (changes.parked && v === 'bucket') renderBucket();
-  if (v === 'dashboard' && (changes.session || changes.parked || changes.calendar || changes.settings || changes.history || changes.block)) renderDashboard();
-  if ((changes.calendar || changes.settings || changes.block) && v === 'settings') renderSettings();
+  if (v === 'dashboard' && (changes.session || changes.parked || changes.calendar || changes.calEvents || changes.settings || changes.history || changes.block || changes.wallet || changes.pledges)) renderDashboard();
+  if ((changes.calendar || changes.settings || changes.block || changes.wallet) && v === 'settings') renderSettings();
   if (changes.lastSummary && v === 'summary') renderSummary();
   if (changes.prefs && v === 'setup' && !state.session) renderSetup();
 });

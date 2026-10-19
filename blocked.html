@@ -22,7 +22,23 @@
   .actions { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
   .count { font-size: 13px; color: var(--g3); }
   .parked-ok { font-size: 13px; color: var(--v4); min-height: 18px; }
+  [hidden] { display: none !important; }
   .over { font-size: 13.5px; color: var(--g5); }
+  .stake { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 18px; border-radius: 14px; border: 1px solid var(--lav-border); background: #FFFFFF; text-align: left; }
+  .stake b { display: block; font-weight: 600; }
+  .stake span { font-size: 13.5px; color: var(--g5); }
+  .stake .amt { font-family: 'Inter Tight', sans-serif; font-size: 26px; font-weight: 500; letter-spacing: -0.03em; color: var(--v3); flex-shrink: 0; }
+  .confirm { width: 100%; display: flex; flex-direction: column; gap: 14px; padding: 22px; border-radius: 18px; border: 1px solid #F3C7E8; background: #FFF7FC; text-align: left; }
+  .confirm h2 { font-size: 22px; letter-spacing: -0.03em; }
+  .confirm ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; }
+  .confirm li { display: flex; justify-content: space-between; gap: 16px; padding: 10px 0; border-top: 1px solid #F6DCEE; font-size: 14.5px; }
+  .confirm li:first-child { border-top: 0; }
+  .confirm li span { color: var(--g5); }
+  .confirm li b { font-weight: 600; text-align: right; }
+  .confirm .actions { justify-content: flex-start; }
+  .btn-lose { border-color: #E9B8DC; color: #9C2378; }
+  .btn-lose:hover { background: #FDEBF7; }
+  .err { font-size: 13.5px; color: #B42318; }
 </style>
 </head>
 <body>
@@ -30,6 +46,10 @@
   <img class="ring" src="assets/ring.png" alt="">
   <h1>Take one slow breath. <span>The thing you came for is safe.</span></h1>
   <p class="task" id="task" hidden></p>
+  <div class="stake" id="stake" hidden>
+    <div><b id="stake-title"></b><span id="stake-sub"></span></div>
+    <div class="amt" id="stake-amt"></div>
+  </div>
   <div class="note" id="note" hidden></div>
   <div class="row">
     <label class="sr-only" for="park">Park a thought</label>
@@ -40,6 +60,15 @@
     <button class="btn btn-primary" id="back">Return to work</button>
     <button class="btn" id="open">Open anyway</button>
   </div>
+  <section class="confirm" id="confirm" hidden aria-labelledby="confirm-h">
+    <h2 id="confirm-h"></h2>
+    <ul id="confirm-list"></ul>
+    <div class="actions">
+      <button class="btn btn-primary" id="keep">Keep my money, back to work</button>
+      <button class="btn btn-lose" id="lose" disabled></button>
+    </div>
+    <p class="err" id="lose-err" role="alert" hidden></p>
+  </section>
   <div class="over" id="over" aria-live="polite"></div>
   <div class="count" id="count"></div>
 </main>

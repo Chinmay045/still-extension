@@ -1,6 +1,6 @@
 # Still
 
-Stop switching. Start finishing. A Chrome (Manifest V3) focus extension. No build step, no backend: plain JavaScript modules, all data in `chrome.storage.local`.
+Stop switching. Start finishing. A Chrome (Manifest V3) focus extension. No build step: plain JavaScript modules, all data in `chrome.storage.local`. The optional focus wallet uses a small server in `backend/`.
 
 ## Load it
 
@@ -20,6 +20,7 @@ Stop switching. Start finishing. A Chrome (Manifest V3) focus extension. No buil
 | In-session dropdown | Click the timer pill at the bottom right of any page, or the toolbar icon. −5 / +5, switch music, park, exit. |
 | Bucket review | **Bucket**: Next task / Later / Delete. The toolbar badge counts new items. |
 | Summary | **Exit focus**, or let the timer run out (soft chime if on). |
+| Focus wallet | Needs the wallet server (see `backend/README.md`). Settings, Focus wallet: sign in, add money (Razorpay test mode), pick a pledge. Then **Test blocking for 2 minutes** and open youtube.com: the block page shows the pledge, and **Break the task** asks you to confirm before taking it. |
 | Calendar | Settings, Integrations, **Try a demo event** ("Onboarding PRD review" at 3:00 PM), then **Send a test nudge**. |
 
 Alt+P can be changed at `chrome://extensions/shortcuts`. If another extension already owns Alt+P, Chrome leaves it unset; set it there.

@@ -7,6 +7,13 @@ export const DEFAULT_SITES = ['youtube.com', 'x.com', 'instagram.com', 'reddit.c
 // connect with one Google sign-in and never see any setup.
 export const GOOGLE_CLIENT_ID = '287087142246-v8qephktt73vi27gacha358kc6ibvlkt.apps.googleusercontent.com';
 
+// The focus wallet server (the Next.js app in backend/), for example
+// https://still-wallet.vercel.app. Empty until it is deployed; Settings can also hold one.
+export const WALLET_API = '';
+
+export const PLEDGES = [0, 20, 50, 100, 200];
+export const CHARITIES = ['Akshaya Patra', 'GiveIndia', 'CRY'];
+
 export const DEFAULT_SETTINGS = {
   sites: DEFAULT_SITES.slice(),
   overrideWait: 30,
@@ -16,7 +23,10 @@ export const DEFAULT_SETTINGS = {
   calendarConnected: false,
   nudgeLeadMin: 10,
   calendarBlock: true,
-  googleClientId: ''
+  googleClientId: '',
+  walletApi: '',
+  pledge: 50,
+  charity: CHARITIES[0]
 };
 
 export const DEFAULT_PREFS = {
@@ -62,7 +72,7 @@ export function uid() {
 }
 
 export async function getAll() {
-  const r = await chrome.storage.local.get(['settings', 'prefs', 'session', 'parked', 'lastSummary', 'calendar', 'history', 'seenWelcome', 'block']);
+  const r = await chrome.storage.local.get(['settings', 'prefs', 'session', 'parked', 'lastSummary', 'calendar', 'history', 'seenWelcome', 'block', 'wallet', 'pledges', 'calEvents']);
   return {
     settings: Object.assign({}, DEFAULT_SETTINGS, r.settings || {}),
     prefs: Object.assign({}, DEFAULT_PREFS, r.prefs || {}),
@@ -72,7 +82,10 @@ export async function getAll() {
     calendar: r.calendar || { connected: false, demo: false, nextEvent: null },
     history: r.history || (r.lastSummary ? [r.lastSummary] : []),
     seenWelcome: !!r.seenWelcome,
-    block: r.block || null
+    block: r.block || null,
+    wallet: r.wallet || { signedIn: false, email: '', balancePaise: 0, txns: [] },
+    pledges: r.pledges || {},
+    calEvents: r.calEvents || {}
   };
 }
 
@@ -92,6 +105,15 @@ export function normalizeDomain(input) {
   if (!d) return '';
   d = d.replace(/^[a-z]+:\/\//, '').replace(/^www\./, '').split(/[\/?#:\s]/)[0];
   return /^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(d) ? d : '';
+}
+
+export function rupees(paise) {
+  return '₹' + (Number(paise || 0) / 100).toLocaleString('en-IN', { maximumFractionDigits: 2 });
+}
+
+// A calendar task's pledge is live once the block starts with enough money in the wallet.
+export function pledgeArmed(block) {
+  return !!(block && block.pledge > 0 && !block.forfeited);
 }
 
 export function fmtClock(ms) {

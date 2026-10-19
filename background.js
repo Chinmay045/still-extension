@@ -2,7 +2,7 @@
 // capture window, toolbar badge, audio routing and calendar nudges.
 // The focus session (circle + timer) only primes the mind and never blocks.
 // Sites are blocked from a synced calendar task's start to its end.
-import { getAll, patch, kindOf, uid, normalizeDomain, fmtTime, GOOGLE_CLIENT_ID } from './js/lib.js';
+import { getAll, patch, kindOf, uid, normalizeDomain, fmtTime, rupees, pledgeArmed, GOOGLE_CLIENT_ID, WALLET_API } from './js/lib.js';
 
 const CAPTURE_SIZE = 288;
 const OVERRIDE_RULE_BASE = 9000;
@@ -28,7 +28,7 @@ chrome.runtime.onStartup.addListener(syncAfterWake);
 async function syncAfterWake() {
   const { session, calendar, block, settings } = await getAll();
   if (block && block.end > Date.now()) {
-    await applyBlocking(settings.sites);
+    await applyBlocking(blockSites(block, settings));
     chrome.alarms.create('block-end', { when: block.end });
   } else if (block) await endBlock();
   else await clearBlocking();
@@ -51,10 +51,11 @@ chrome.storage.onChanged.addListener(async (changes, area) => {
   if (area !== 'local') return;
   if (changes.parked) updateBadge();
   if (changes.settings) {
-    // Keep the live block in step with the Settings list and toggle.
+    // Keep the live block in step with the Settings list and toggle. A task with a
+    // live pledge keeps blocking until it ends: turning blocking off is not a way out.
     const { block, settings } = await getAll();
-    if (block && !settings.calendarBlock) await endBlock();
-    else if (block) await applyBlocking(settings.sites);
+    if (block && !settings.calendarBlock && !pledgeArmed(block)) await endBlock();
+    else if (block) await applyBlocking(blockSites(block, settings));
     else if (settings.calendarBlock) await checkBlockNow();
   }
 });
@@ -63,6 +64,12 @@ chrome.storage.onChanged.addListener(async (changes, area) => {
 
 function escapeRe(s) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// While a pledge is live, sites removed from the list mid-task stay blocked.
+function blockSites(block, settings) {
+  if (!pledgeArmed(block)) return settings.sites;
+  return Array.from(new Set((block.sites || []).concat(settings.sites)));
 }
 
 async function applyBlocking(sites) {
@@ -452,22 +459,27 @@ async function startBlock(e) {
   }
   const next = {
     eventId: e.id,
+    // One key per run of a task, so a recurring event can carry a fresh pledge each time.
+    key: e.id + ':' + e.start,
     title: e.title,
     start: Math.min(e.start, Date.now()),
     end: e.end,
     impulses: 0,
     overrides: 0,
-    test: !!e.test
+    test: !!e.test,
+    sites: settings.sites.slice(),
+    ...(await pledgeFor(e, settings))
   };
   await chrome.storage.local.set({ block: next });
   await applyBlocking(settings.sites);
   chrome.alarms.create('block-end', { when: next.end });
   const id = 'block|' + Date.now();
+  const stake = next.pledge ? ' ' + rupees(next.pledge * 100) + ' is on the line.' : next.pledgeShort ? ' Your wallet is too low for the ' + rupees(next.pledgeShort * 100) + ' pledge, so none is set.' : '';
   chrome.notifications.create(id, {
     type: 'basic',
     iconUrl: ICON,
     title: e.title + ' has started',
-    message: 'Distracting sites are blocked until ' + fmtTime(next.end) + '.',
+    message: 'Distracting sites are blocked until ' + fmtTime(next.end) + '.' + stake,
     silent: true,
     priority: 0
   });
@@ -491,6 +503,8 @@ async function endBlock() {
       blocked: [],
       impulses: block.impulses,
       overrides: block.overrides,
+      pledge: block.pledge || 0,
+      forfeited: !!block.forfeited,
       parkedCount: 0,
       endedAt: Date.now(),
       reason: 'calendar'
@@ -511,6 +525,175 @@ async function checkBlockNow() {
 // Lets the user see blocking work without waiting for a real event.
 async function testBlock() {
   return startBlock({ id: 'test-block', title: 'Test task', start: Date.now(), end: Date.now() + 2 * 60000, test: true });
+}
+
+// ---------- focus wallet ----------
+// A prepaid balance kept on the wallet server (backend/). The extension never moves
+// money itself: it asks the server to take a task's pledge after the user confirms
+// "Break the task" on the block page, and the server refuses to go below zero.
+
+async function walletBase() {
+  const { settings } = await getAll();
+  return (settings.walletApi || WALLET_API || '').trim().replace(/\/+$/, '');
+}
+
+async function walletConfig() {
+  const base = await walletBase();
+  if (!base) throw new Error('The wallet server is not set up yet');
+  const { walletCfg } = await chrome.storage.session.get('walletCfg');
+  if (walletCfg && walletCfg.base === base) return walletCfg;
+  const res = await fetch(base + '/api/config');
+  if (!res.ok) throw new Error('Wallet server error ' + res.status);
+  const cfg = Object.assign({ base }, await res.json());
+  if (!cfg.supabaseUrl || !cfg.supabaseAnonKey) throw new Error('The wallet server is missing its Supabase keys');
+  await chrome.storage.session.set({ walletCfg: cfg });
+  return cfg;
+}
+
+function saveAuth(params) {
+  const auth = {
+    access: params.access_token,
+    refresh: params.refresh_token,
+    exp: Date.now() + Number(params.expires_in || 3600) * 1000
+  };
+  return chrome.storage.local.set({ walletAuth: auth }).then(() => auth);
+}
+
+// Google sign-in through Supabase Auth. Supabase sends the session back in the
+// redirect's hash, so the extension needs only its public URL and anon key.
+async function walletSignIn() {
+  try {
+    const cfg = await walletConfig();
+    const q = new URLSearchParams({ provider: 'google', redirect_to: chrome.identity.getRedirectURL('wallet') });
+    const redirect = await chrome.identity.launchWebAuthFlow({ url: cfg.supabaseUrl + '/auth/v1/authorize?' + q, interactive: true });
+    const params = Object.fromEntries(new URLSearchParams(new URL(redirect).hash.slice(1)));
+    if (params.error) throw new Error(params.error_description || params.error);
+    if (!params.access_token) throw new Error('Supabase did not return a session');
+    await saveAuth(params);
+    await walletRefresh();
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+}
+
+async function walletSignOut() {
+  await chrome.storage.local.set({ walletAuth: null, wallet: { signedIn: false, email: '', balancePaise: 0, txns: [] } });
+  return { ok: true };
+}
+
+async function walletToken() {
+  const { walletAuth } = await chrome.storage.local.get('walletAuth');
+  if (!walletAuth) throw new Error('Sign in to your wallet first');
+  if (walletAuth.exp > Date.now() + 60000) return walletAuth.access;
+  const cfg = await walletConfig();
+  const res = await fetch(cfg.supabaseUrl + '/auth/v1/token?grant_type=refresh_token', {
+    method: 'POST',
+    headers: { apikey: cfg.supabaseAnonKey, 'content-type': 'application/json' },
+    body: JSON.stringify({ refresh_token: walletAuth.refresh })
+  });
+  if (!res.ok) {
+    await walletSignOut();
+    throw new Error('Your wallet sign-in expired. Sign in again.');
+  }
+  return (await saveAuth(await res.json())).access;
+}
+
+async function walletFetch(path, body) {
+  const cfg = await walletConfig();
+  const res = await fetch(cfg.base + path, {
+    method: body ? 'POST' : 'GET',
+    headers: { authorization: 'Bearer ' + (await walletToken()), 'content-type': 'application/json' },
+    body: body ? JSON.stringify(body) : undefined
+  });
+  const data = await res.json().catch(() => ({}));
+  if (res.status === 401) await walletSignOut();
+  if (!res.ok) {
+    const err = new Error(data.error || 'Wallet server error ' + res.status);
+    err.code = data.code;
+    err.balancePaise = data.balancePaise;
+    throw err;
+  }
+  return data;
+}
+
+async function walletRefresh() {
+  try {
+    const data = await walletFetch('/api/wallet');
+    const wallet = { signedIn: true, email: data.email || '', balancePaise: data.balancePaise, txns: data.txns || [], lastSync: Date.now() };
+    await chrome.storage.local.set({ wallet });
+    return { ok: true, wallet };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+}
+
+async function walletOpen() {
+  const base = await walletBase();
+  if (!base) return { ok: false, error: 'The wallet server is not set up yet' };
+  await chrome.tabs.create({ url: base + '/wallet' });
+  return { ok: true };
+}
+
+// Decides a new task's pledge: its own amount if set on the Dashboard, else the default.
+// Only armed when the wallet can cover it, so a pledge is never an empty threat.
+async function pledgeFor(e, settings) {
+  const { wallet, pledges } = await getAll();
+  if (!wallet.signedIn) return { pledge: 0 };
+  const want = e.id in pledges ? Number(pledges[e.id]) : Number(settings.pledge);
+  if (!(want > 0)) return { pledge: 0 };
+  const fresh = await walletRefresh();
+  const balance = fresh.ok ? fresh.wallet.balancePaise : wallet.balancePaise;
+  if (balance < want * 100) return { pledge: 0, pledgeShort: want };
+  return { pledge: want, charity: settings.charity };
+}
+
+async function takePledge(block, site) {
+  const r = await walletFetch('/api/forfeit', {
+    amount: block.pledge,
+    taskKey: block.key,
+    taskTitle: block.title,
+    site,
+    charity: block.charity
+  });
+  const cur = (await getAll()).block;
+  if (cur && cur.key === block.key) {
+    cur.forfeited = true;
+    cur.forfeitedAt = Date.now();
+    await chrome.storage.local.set({ block: cur });
+  }
+  await walletRefresh();
+  return r;
+}
+
+// "Break the task" on the block page, after its confirm step: take the pledge, then open the site once.
+async function breakTask(url, tabId) {
+  const { block } = await getAll();
+  if (!pledgeArmed(block)) return { ok: false, error: 'No pledge on this task' };
+  let host = '';
+  try { host = new URL(url).hostname.replace(/^www\./, ''); } catch (e) { /* keep empty */ }
+  try {
+    await takePledge(block, host);
+  } catch (e) {
+    return { ok: false, error: e.message, code: e.code };
+  }
+  await allowOnce(url, tabId);
+  return { ok: true };
+}
+
+// Stopping a pledged task early counts as breaking it, so it needs the same confirmation.
+async function stopBlock(forfeit) {
+  const { block } = await getAll();
+  if (pledgeArmed(block)) {
+    if (!forfeit) return { ok: false, needsConfirm: true, pledge: block.pledge };
+    try {
+      await takePledge(block, 'stopped early');
+    } catch (e) {
+      return { ok: false, error: e.message, code: e.code };
+    }
+  }
+  await endBlock();
+  return { ok: true };
 }
 
 // ---------- calendar nudges ----------
@@ -743,6 +926,13 @@ const handlers = {
   setLength: (m) => setLength(Number(m.minutes) || 10),
   testBlock: () => testBlock(),
   endBlock: () => endBlock(),
+  stopBlock: (m) => stopBlock(!!m.forfeit),
+  breakTask: (m, sender) => breakTask(m.url, sender.tab.id),
+  walletSignIn: () => walletSignIn(),
+  walletSignOut: () => walletSignOut(),
+  walletRefresh: () => walletRefresh(),
+  walletOpen: () => walletOpen(),
+  walletBase: () => walletBase(),
   openCapture: (m) => openCapture(m.mode),
   saveThought: async (m) => {
     const item = m.id ? await updateParked(m.id, m.text) : await addParked(m.text, m.source || 'capture');
