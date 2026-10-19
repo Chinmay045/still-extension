@@ -70,9 +70,12 @@ main:focus { outline: none; }
 .lead { margin: 0; font-size: 17px; line-height: 1.65; max-width: 440px; }
 
 /* Before / after slider: heading + full slider fit one screen below the sticky nav */
-#compare { --vs-w: min(100%, 800px, calc((100vh - 196px) * 1.2)); padding-top: 32px; scroll-margin-top: 68px; }
+#compare { --vs-w: min(100%, 1320px); max-width: none; padding: 28px 32px 0; scroll-margin-top: 68px; }
 #compare .sec-head, #compare .vs { width: var(--vs-w); margin-left: auto; margin-right: auto; }
-#compare .sec-head { margin-bottom: 18px; }
+#compare .sec-head { margin-bottom: 16px; }
+#compare .vs { aspect-ratio: auto; height: clamp(380px, calc(100vh - 184px), 860px); }
+#compare .vs-before img { object-position: right 42%; }
+#compare .vs-after img { object-position: left 42%; }
 #compare .big { font-size: clamp(30px, 3vw, 40px); }
 .vs { --split: 80%; position: relative; aspect-ratio: 3 / 2; border-radius: 28px; overflow: hidden; box-shadow: 0 30px 80px rgba(0, 0, 0, 0.12); user-select: none; background: #121318; }
 .vs-before, .vs-after { position: absolute; top: 0; bottom: 0; overflow: hidden; }
