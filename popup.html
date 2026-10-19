@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Still</title>
+<link rel="stylesheet" href="css/still.css">
+<link rel="stylesheet" href="css/session.css">
+<style>
+  body { width: 340px; padding: 18px; }
+  .top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+  .top img { height: 26px; }
+  .status { font-size: 12px; font-weight: 600; color: var(--v4); background: var(--lav); border: 1px solid var(--lav-border); padding: 3px 10px; border-radius: 999px; }
+  .stack { display: flex; flex-direction: column; gap: 12px; }
+  .links { display: flex; justify-content: space-between; margin-top: 4px; }
+  .links button { border: 0; background: transparent; color: var(--v2); font-weight: 500; font-size: 13.5px; padding: 6px 4px; border-radius: 8px; }
+  .links button:hover { background: var(--lav); }
+  .meta { font-size: 12.5px; color: var(--g3); text-align: center; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<div class="top">
+  <img src="assets/logo.png" alt="Still">
+  <span class="status" id="status">Ready</span>
+</div>
+
+<section id="idle" class="stack" hidden>
+  <label class="label" for="task">Your one task</label>
+  <input class="input" id="task" placeholder="What's the one thing?" autocomplete="off">
+  <button class="btn btn-primary" id="start">Start focus</button>
+  <div class="meta" id="idle-meta"></div>
+  <div class="links">
+    <button id="to-bucket">Bucket <span id="bucket-count"></span></button>
+    <button id="to-park">Park a thought</button>
+    <button id="to-home">Home</button>
+  </div>
+</section>
+
+<section id="active" hidden>
+  <div class="sess light" id="sess"></div>
+</section>
+
+<script type="module" src="js/popup.js"></script>
+</body>
+</html>

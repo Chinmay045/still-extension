@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Still · Focus circle</title>
+<link rel="stylesheet" href="css/still.css">
+<style>
+  html, body { height: 100%; }
+  body { background: #000000; color: #FFFFFF; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+  .wrap { display: flex; flex-direction: column; align-items: center; gap: 34px; padding: 24px; text-align: center; }
+  .eyebrow { font-size: 12px; letter-spacing: .3em; text-transform: uppercase; color: rgba(255, 255, 255, .55); }
+  .task { font-family: 'Inter Tight', sans-serif; font-size: 30px; font-weight: 500; letter-spacing: -0.03em; max-width: 720px; }
+  .circle {
+    width: min(64vh, 76vw); height: min(64vh, 76vw); border: 0; padding: 0; border-radius: 50%;
+    background: transparent; animation: breathe 9s ease-in-out infinite; transition: opacity .6s;
+  }
+  .circle img { width: 100%; height: 100%; border-radius: 50%; display: block; animation: spin 80s linear infinite; }
+  .circle:focus-visible { box-shadow: 0 0 0 4px #000000, 0 0 0 6px #9B4DF5 !important; }
+  body.dim .circle { opacity: .5; }
+  body.dim .task, body.dim .hint { opacity: .6; }
+  .hint { font-size: 14.5px; color: rgba(255, 255, 255, .6); }
+  .meta { font-size: 13px; color: rgba(255, 255, 255, .42); }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes breathe { 0%, 100% { transform: scale(0.97); } 50% { transform: scale(1.03); } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <span class="eyebrow">Still · one task</span>
+  <div class="task" id="task"></div>
+  <button class="circle" id="circle" aria-label="Begin work">
+    <img id="img" alt="">
+  </button>
+  <div class="hint">Breathe with the circle. Click it, or press Enter, when you are ready to begin.</div>
+  <div class="meta" id="meta"></div>
+</div>
+<script type="module" src="js/focus.js"></script>
+</body>
+</html>

@@ -1,0 +1,20 @@
+.sess { display: flex; flex-direction: column; gap: 14px; }
+.sess .s-task { font-family: 'Inter Tight', sans-serif; font-size: 17px; font-weight: 500; letter-spacing: -0.02em; line-height: 1.3; }
+.sess .s-sec { display: flex; flex-direction: column; gap: 8px; }
+.sess .s-timer { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.sess .s-clock { font-family: 'Inter Tight', sans-serif; font-size: 40px; font-weight: 500; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; line-height: 1; }
+.sess .s-adj { display: flex; gap: 6px; }
+.sess .s-adj button { min-height: 34px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--g2); background: #FFFFFF; color: var(--v3); font-weight: 600; font-size: 13px; }
+.sess .s-adj button:hover { background: var(--lav); }
+.sess .s-music { display: flex; flex-direction: column; gap: 2px; }
+.sess .s-music button { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 34px; padding: 0 10px; border: 0; border-radius: 10px; background: transparent; text-align: left; font-size: 13.5px; color: var(--g4); }
+.sess .s-music button:hover { background: var(--lav); }
+.sess .s-music button[aria-checked="true"] { background: var(--lav); color: var(--v3); font-weight: 600; }
+.sess .s-music .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--g2); flex: none; }
+.sess .s-music button[aria-checked="true"] .dot { background: var(--grad); }
+.sess .s-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.sess .s-row .btn { flex: 1 1 auto; padding: 0 14px; }
+.sess .s-phase { font-size: 12.5px; color: var(--g5); }
+.sess kbd { font: inherit; font-size: 11px; padding: 1px 5px; border-radius: 5px; background: rgba(255, 255, 255, .25); }
+.sess .btn kbd { background: var(--g1); color: var(--g5); }
+.sess .btn-primary kbd { background: rgba(255, 255, 255, .25); color: #FFFFFF; }

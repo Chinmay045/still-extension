@@ -1,0 +1,7 @@
+# Never commit signing keys or packaged builds
+*.pem
+keys/
+*.zip
+*.crx
+.DS_Store
+Thumbs.db

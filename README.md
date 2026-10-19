@@ -1,0 +1,48 @@
+# Still
+
+Stop switching. Start finishing. A Chrome (Manifest V3) focus extension. No build step, no backend: plain JavaScript modules, all data in `chrome.storage.local`.
+
+## Load it
+
+1. Unzip `still-extension.zip`.
+2. Open `chrome://extensions` and turn on **Developer mode** (top right).
+3. Click **Load unpacked** and pick the unzipped `extension` folder (the one with `manifest.json`).
+4. Home opens in a new tab. Pin Still from the puzzle icon so the badge shows.
+
+## Test it
+
+| Check | What to do |
+|---|---|
+| Setup and focus circle | Home, **Setup**, type a task, **Start focus**. The circle tab opens. Click it (or press Enter) and you are sent back to your last web tab. |
+| Blocking | During a session, open youtube.com. You get the block page, and the URL is in **Bucket** as a Link. |
+| Override | On the block page, **Open anyway** counts down (Settings, Override wait) and lets you through once. |
+| Alt+P capture | On any tab, press Alt+P (Option+P on Mac). Type, press Enter. The square closes and "Parked. Back to work." shows. ☰ lists past thoughts; click one to edit. |
+| In-session dropdown | Click the timer pill at the bottom right of any page, or the toolbar icon. −5 / +5, switch music, park, exit. |
+| Bucket review | **Bucket**: Next task / Later / Delete. The toolbar badge counts new items. |
+| Summary | **Exit focus**, or let the timer run out (soft chime if on). |
+| Calendar | Settings, Integrations, **Try a demo event** ("Onboarding PRD review" at 3:00 PM), then **Send a test nudge**. |
+
+Alt+P can be changed at `chrome://extensions/shortcuts`. If another extension already owns Alt+P, Chrome leaves it unset; set it there.
+
+## Real Google Calendar (optional)
+
+The extension ID is fixed by the `key` in `manifest.json`: it is always **hjcpkhjkanikiahcjmhcblnnkloopnmc**, on any computer. So the Google redirect address never changes:
+
+`https://hjcpkhjkanikiahcjmhcblnnkloopnmc.chromiumapp.org/`
+
+You never edit files. In Still, open Settings, Integrations, **Connect Google Calendar** and follow the 5 steps shown there:
+
+1. Google Cloud console: create a project called Still.
+2. Enable the **Google Calendar API**.
+3. Consent screen (Google Auth Platform): app name Still, audience **External**, then add your own Gmail under Audience, **Test users**.
+4. Create an OAuth client of type **Web application**. Under **Authorized redirect URIs**, add the address above.
+5. Copy the Client ID, paste it into Still and click Connect. Google says the app is unverified: click Continue.
+
+Scope is read-only (`calendar.events.readonly`). A public Web Store launch needs Google verification for it. Note: the Web Store gives a published extension its own ID, so remove `key` before uploading and add the store ID's redirect address to the same client. `still/keys/still-key.pem` in the project is the private half of the key; keep it private.
+
+## Files
+
+- `background.js`: service worker. Session timer (`chrome.alarms`), declarativeNetRequest rules, capture window, badge, calendar polling and nudges.
+- `offscreen.html` + `js/audio.js`: the five synthesized sounds (Web Audio, gain x0.75 into a compressor).
+- `home.html`: Home, Setup, Bucket, Settings and Summary (hash routes).
+- `popup.html`, `focus.html`, `blocked.html`, `capture.html`, `content.js` (floating timer and dropdown).

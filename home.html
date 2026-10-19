@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Still</title>
+<link rel="icon" href="assets/icon-32.png">
+<link rel="stylesheet" href="css/still.css">
+<link rel="stylesheet" href="css/session.css">
+<link rel="stylesheet" href="css/home.css">
+</head>
+<body>
+<a class="skip sr-only" href="#main">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <a href="#home" class="brand" aria-label="Still home"><img src="assets/logo.png" alt="Still"></a>
+  <div class="nav-links">
+    <a href="#setup" data-nav="setup">Setup</a>
+    <a href="#bucket" data-nav="bucket">Bucket <span class="badge" id="nav-badge" hidden></span></a>
+    <a href="#settings" data-nav="settings">Settings</a>
+    <button class="cal-btn" id="cal-btn" type="button"><span class="cal-dot"></span><span id="cal-label">Connect Calendar</span></button>
+  </div>
+</nav>
+
+<main id="main" tabindex="-1">
+
+<!-- HOME -->
+<section class="view" id="view-home" hidden>
+  <div class="hero">
+    <img class="hero-ring" src="assets/hero-ring.png" alt="" aria-hidden="true">
+    <div class="hero-fade" aria-hidden="true"></div>
+    <div class="hero-copy">
+      <span class="eyebrow">Still for Chrome</span>
+      <h1 class="hero-h1">Stop switching.<br><span class="hero-accent">Start finishing.</span></h1>
+      <p class="hero-sub">Focus, beautifully kept.</p>
+      <button class="curious" id="to-compare" type="button"><span class="pulse"></span>Your workday, with and without <span class="still-word">Still</span> ↓</button>
+    </div>
+  </div>
+
+  <div class="section" id="compare">
+    <div class="sec-head">
+      <h2 class="big">Less noise. More you.</h2>
+      <span class="muted">Drag the handle to compare.</span>
+    </div>
+    <div class="vs" id="vs">
+      <div class="vs-after"><img src="assets/slider-after.jpg" alt="With Still: calm and focused on one task"></div>
+      <div class="vs-before"><img src="assets/slider-before.jpg" alt="Without Still: distracted by tabs and notifications"></div>
+      <div class="vs-line" aria-hidden="true"></div>
+      <input class="vs-range" id="vs-range" type="range" min="20" max="80" value="80" aria-label="Compare your workday without and with Still">
+      <div class="vs-handle" aria-hidden="true"><span class="vs-arrow">‹</span><span>Go <span class="still-word">Still</span></span></div>
+    </div>
+  </div>
+
+  <div class="section intent">
+    <h2 class="big">Designed around<br><span class="accent">a single intention.</span></h2>
+    <p class="muted lead">Every detail removes one more reason to look away. Name one task, let <span class="still-word">Still</span> close the noise, and park every stray thought without leaving your tab.</p>
+  </div>
+
+  <div class="section tiles">
+    <div class="tile tile-dark tile-wide">
+      <span class="tile-eyebrow">One task</span>
+      <div class="typing"><span id="typing"></span><span class="caret" aria-hidden="true"></span></div>
+      <p class="tile-foot">Say what matters. Then only that.</p>
+    </div>
+    <div class="tile tile-soft">
+      <span class="tile-eyebrow dark">Blocked while you focus</span>
+      <ul class="struck">
+        <li><span>youtube.com</span><em>Blocked</em></li>
+        <li><span>x.com</span><em>Blocked</em></li>
+        <li><span>reddit.com</span><em>Blocked</em></li>
+      </ul>
+      <p class="tile-title">Distractions, quietly closed.</p>
+    </div>
+    <div class="tile tile-soft">
+      <span class="tile-eyebrow dark">Park a thought</span>
+      <div class="keys"><kbd>Alt</kbd><span>+</span><kbd>P</kbd></div>
+      <p class="tile-title">Park the thought. Keep the flow.</p>
+    </div>
+    <div class="tile tile-soft tile-wide">
+      <span class="tile-eyebrow dark">Sound</span>
+      <div class="bars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+      <p class="tile-title">Sound, chosen by research.</p>
+      <p class="muted small">Lyric free music, 40 Hz gamma beats, a beta pulse and cafe murmur. Always soft, never clipped.</p>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="cta">
+      <img src="assets/logo.png" alt="Still" class="cta-logo">
+      <p class="cta-line">Your next hour, back to you.</p>
+      <button class="btn btn-primary" id="add-chrome" type="button">Add to Chrome</button>
+    </div>
+  </div>
+</section>
+
+<!-- SETUP -->
+<section class="view page" id="view-setup" hidden>
+  <header class="page-head">
+    <h1>Set up your focus</h1>
+    <p class="muted">Name one thing, pick how long, and <span class="still-word">Still</span> handles the rest.</p>
+  </header>
+
+  <div id="setup-running" class="card pad" hidden>
+    <div class="running-head"><span class="pill-live">Session running</span></div>
+    <div class="sess light" id="setup-sess"></div>
+  </div>
+
+  <form id="setup-form" class="stack-lg" novalidate>
+    <div class="field">
+      <label class="label" for="task">Task</label>
+      <input class="input input-lg" id="task" placeholder="What's the one thing?" autocomplete="off" maxlength="200">
+      <span class="from-cal" id="from-cal" hidden>From your calendar</span>
+    </div>
+
+    <div class="field">
+      <span class="label" id="len-label">Length</span>
+      <div class="len-row">
+        <div class="seg" role="radiogroup" aria-labelledby="len-label" id="len-seg">
+          <button type="button" role="radio" data-len="25">25 min</button>
+          <button type="button" role="radio" data-len="50">50 min</button>
+          <button type="button" role="radio" data-len="custom">Custom</button>
+        </div>
+        <label class="custom" id="custom-wrap" hidden>
+          <input class="input" type="number" id="custom-min" min="1" max="240" step="1" aria-label="Custom length in minutes"> <span class="muted">min</span>
+        </label>
+      </div>
+    </div>
+
+    <div class="field">
+      <span class="label" id="theme-label">Focus circle</span>
+      <div class="themes" role="radiogroup" aria-labelledby="theme-label" id="themes"></div>
+    </div>
+
+    <div class="field">
+      <span class="label" id="sound-label">Sound</span>
+      <div class="sounds" role="radiogroup" aria-labelledby="sound-label" id="sounds"></div>
+    </div>
+
+    <div class="field">
+      <span class="label">Volume</span>
+      <div id="volume"></div>
+    </div>
+
+    <div class="field">
+      <span class="label">Blocked sites</span>
+      <div class="chips" id="setup-sites"></div>
+      <div class="add-row">
+        <input class="input" id="setup-site-input" placeholder="Add a site, like instagram.com" autocomplete="off" aria-label="Add a blocked site">
+        <button class="btn" type="button" id="setup-site-add">Add</button>
+      </div>
+    </div>
+
+    <div class="start-row">
+      <button class="btn btn-primary btn-xl" type="submit" id="start">Start focus</button>
+      <span class="muted small" id="start-note"></span>
+    </div>
+  </form>
+</section>
+
+<!-- BUCKET -->
+<section class="view page" id="view-bucket" hidden>
+  <header class="page-head">
+    <h1>Bucket</h1>
+    <p class="muted">Thoughts you parked instead of switching tabs. Review them one at a time, it takes about a minute.</p>
+  </header>
+
+  <div class="add-row">
+    <input class="input" id="bucket-add" placeholder="Add a thought to the bucket" autocomplete="off" aria-label="Add a thought">
+    <button class="btn" id="bucket-add-btn" type="button">Park it</button>
+  </div>
+
+  <div id="review"></div>
+
+  <div class="later" id="later"></div>
+</section>
+
+<!-- SETTINGS -->
+<section class="view page" id="view-settings" hidden>
+  <header class="page-head">
+    <h1>Settings</h1>
+    <p class="muted">Everything stays on this device.</p>
+  </header>
+
+  <div class="card pad set-sec">
+    <h2 class="h2">Blocked sites</h2>
+    <p class="muted small">Redirected to a calm block page while a session runs.</p>
+    <div class="chips" id="set-sites"></div>
+    <div class="add-row">
+      <input class="input" id="set-site-input" placeholder="Add a site, like instagram.com" autocomplete="off" aria-label="Add a blocked site">
+      <button class="btn" type="button" id="set-site-add">Add</button>
+    </div>
+  </div>
+
+  <div class="card pad set-sec">
+    <h2 class="h2" id="ow-label">Override wait</h2>
+    <p class="muted small">How long "Open anyway" makes you wait before letting you through once.</p>
+    <div class="seg" role="radiogroup" aria-labelledby="ow-label" id="ow-seg">
+      <button type="button" role="radio" data-ow="15">15 sec</button>
+      <button type="button" role="radio" data-ow="30">30 sec</button>
+      <button type="button" role="radio" data-ow="60">60 sec</button>
+    </div>
+  </div>
+
+  <div class="card pad set-sec">
+    <h2 class="h2">Session</h2>
+    <div class="toggle-row"><div><b id="t-chime-l">Chime when time is up</b><span class="muted small">A soft three-note chime.</span></div><button class="switch" role="switch" data-toggle="chime" aria-labelledby="t-chime-l"></button></div>
+    <div class="toggle-row"><div><b id="t-circle-l">Open the focus circle on start</b><span class="muted small">Turn off to go straight to work.</span></div><button class="switch" role="switch" data-toggle="autoCircle" aria-labelledby="t-circle-l"></button></div>
+    <div class="toggle-row"><div><b id="t-dim-l">Dim the circle after 9 pm</b><span class="muted small">Easier on the eyes at night.</span></div><button class="switch" role="switch" data-toggle="nightDim" aria-labelledby="t-dim-l"></button></div>
+  </div>
+
+  <div class="card pad set-sec" id="integrations">
+    <h2 class="h2">Integrations</h2>
+    <div class="int-row">
+      <div class="int-info">
+        <span class="gcal" aria-hidden="true">31</span>
+        <div><b>Google Calendar</b><span class="muted small" id="cal-state">Not connected. Read-only access, used only for focus nudges.</span></div>
+      </div>
+      <div class="int-actions" id="cal-actions"></div>
+    </div>
+    <p class="err small" id="cal-err" hidden></p>
+    <div class="cal-setup" id="cal-setup" hidden>
+      <b>Connect your Google Calendar in 5 steps</b>
+      <span class="muted small">One time only, about 5 minutes. Google needs your own free "client ID" before any app can read your calendar.</span>
+      <ol>
+        <li>Open <a href="https://console.cloud.google.com/projectcreate" target="_blank" rel="noopener">Google Cloud, New project</a>. Name it <i>Still</i> and click Create.</li>
+        <li>Turn on the <a href="https://console.cloud.google.com/apis/library/calendar-json.googleapis.com" target="_blank" rel="noopener">Google Calendar API</a> (click Enable).</li>
+        <li>Set up the <a href="https://console.cloud.google.com/auth/overview" target="_blank" rel="noopener">consent screen</a>: app name <i>Still</i>, your email, audience <b>External</b>. Then under <b>Audience</b>, add your own Gmail as a <b>Test user</b>.</li>
+        <li>Go to <a href="https://console.cloud.google.com/auth/clients/create" target="_blank" rel="noopener">Create OAuth client</a>. Type: <b>Web application</b>. Under <b>Authorized redirect URIs</b>, add this exact address:
+          <span class="copy-row"><code id="redirect-uri">loading…</code><button type="button" class="btn btn-sm" id="copy-uri">Copy</button></span>
+        </li>
+        <li>Click Create, copy the <b>Client ID</b> (it ends in .apps.googleusercontent.com) and paste it here:</li>
+      </ol>
+      <div class="add-row">
+        <input class="input" id="client-id" placeholder="1234567890-abc.apps.googleusercontent.com" autocomplete="off" aria-label="Google OAuth client ID">
+        <button type="button" class="btn btn-primary" id="client-connect">Connect</button>
+      </div>
+      <span class="muted small">Google will warn that the app isn't verified. That's expected for your own test app: click <b>Continue</b>. <span class="still-word">Still</span> only asks to read events.</span>
+    </div>
+  </div>
+
+  <div class="card pad set-sec">
+    <h2 class="h2" id="lead-label">Notifications</h2>
+    <p class="muted small">Nudge me this long before a calendar event.</p>
+    <div class="seg" role="radiogroup" aria-labelledby="lead-label" id="lead-seg">
+      <button type="button" role="radio" data-lead="5">5 min</button>
+      <button type="button" role="radio" data-lead="10">10 min</button>
+      <button type="button" role="radio" data-lead="15">15 min</button>
+    </div>
+  </div>
+
+  <div class="card pad set-sec">
+    <h2 class="h2">Shortcut</h2>
+    <div class="toggle-row">
+      <div><b>Park a thought</b><span class="muted small">Opens the capture box from any tab. Option+P on Mac.</span></div>
+      <kbd class="kbd" id="shortcut">Alt+P</kbd>
+    </div>
+    <button class="btn btn-sm" type="button" id="change-shortcut">Change at chrome://extensions/shortcuts</button>
+  </div>
+</section>
+
+<!-- SUMMARY -->
+<section class="view page" id="view-summary" hidden>
+  <div id="summary"></div>
+</section>
+
+</main>
+<div class="toast" id="toast" role="status" hidden></div>
+<script type="module" src="js/home.js"></script>
+</body>
+</html>

@@ -1,0 +1,71 @@
+{
+  "manifest_version": 3,
+  "name": "Still",
+  "short_name": "Still",
+  "version": "1.0.0",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAk4jrjXTmqVhSJwMSF+8Tql9pTIFZbApxz9lWXzUvxEl17vnq3PznM9VBNEVG4JUTuVLuEfFaATZ4NJVQW6YU4zwk7c4BUT6lNes5rHdui8Mod28Fm/ResFcdftNsYkTM6wV3qZi7eQIQw4Evpu2JcG9MjwOHkobO7la9ytYazRchNeixyB3SdtkoCJJJAeUPXd1DHalrAFddMMpoUNr3gGJPTMAc6Yvy6e+Qliz0j0crmyjFDtj5Vlj2HLQFVJ0iiJQVT2JUdXcwTdu6kIg7pLb1Fi8jW7VrMIUNtbeUgjWfoomFYejgXsyb2uFbzcoir18rAD+qHHeBvKEBCzvYpQIDAQAB",
+  "description": "Stop switching. Start finishing. Name one task, block the noise, park stray thoughts.",
+  "icons": {
+    "16": "assets/icon-16.png",
+    "32": "assets/icon-32.png",
+    "48": "assets/icon-48.png",
+    "128": "assets/icon-128.png"
+  },
+  "action": {
+    "default_title": "Still",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "assets/icon-16.png",
+      "32": "assets/icon-32.png",
+      "48": "assets/icon-48.png"
+    }
+  },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "permissions": [
+    "storage",
+    "alarms",
+    "notifications",
+    "declarativeNetRequest",
+    "tabs",
+    "identity",
+    "offscreen"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "commands": {
+    "park-thought": {
+      "suggested_key": {
+        "default": "Alt+P",
+        "mac": "Alt+P"
+      },
+      "description": "Park a thought (opens the Still capture box)"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "http://*/*",
+        "https://*/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "blocked.html",
+        "assets/ring.png"
+      ],
+      "matches": [
+        "<all_urls>"
+      ]
+    }
+  ]
+}

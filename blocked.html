@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Still · Take a breath</title>
+<link rel="stylesheet" href="css/still.css">
+<style>
+  body { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 32px 16px; background: #FFFFFF; }
+  .wrap { width: 100%; max-width: 560px; display: flex; flex-direction: column; align-items: center; gap: 22px; text-align: center; }
+  .ring { width: 96px; height: 96px; animation: breathe 8s ease-in-out infinite; }
+  @keyframes breathe { 0%, 100% { transform: scale(.92); } 50% { transform: scale(1.06); } }
+  h1 { font-size: 40px; line-height: 1.08; letter-spacing: -0.04em; }
+  h1 span { display: block; color: var(--v2); }
+  .task { font-size: 15px; color: var(--g5); }
+  .task b { color: var(--ink); font-weight: 600; }
+  .note {
+    width: 100%; padding: 12px 16px; border-radius: 14px; background: var(--lav); border: 1px solid var(--lav-border);
+    color: var(--v3); font-size: 14px; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .row { width: 100%; display: flex; flex-direction: column; gap: 10px; }
+  .actions { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+  .count { font-size: 13px; color: var(--g3); }
+  .parked-ok { font-size: 13px; color: var(--v4); min-height: 18px; }
+  .over { font-size: 13.5px; color: var(--g5); }
+</style>
+</head>
+<body>
+<main class="wrap">
+  <img class="ring" src="assets/ring.png" alt="">
+  <h1>Take one slow breath. <span>The thing you came for is safe.</span></h1>
+  <p class="task" id="task" hidden></p>
+  <div class="note" id="note" hidden></div>
+  <div class="row">
+    <label class="sr-only" for="park">Park a thought</label>
+    <input class="input" id="park" placeholder="Anything else on your mind? Press Enter to park it" autocomplete="off">
+    <div class="parked-ok" id="parked-ok" aria-live="polite"></div>
+  </div>
+  <div class="actions">
+    <button class="btn btn-primary" id="back">Return to work</button>
+    <button class="btn" id="open">Open anyway</button>
+  </div>
+  <div class="over" id="over" aria-live="polite"></div>
+  <div class="count" id="count"></div>
+</main>
+<script type="module" src="js/blocked.js"></script>
+</body>
+</html>

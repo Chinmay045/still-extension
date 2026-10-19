@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Still capture</title>
+<link rel="stylesheet" href="css/still.css">
+<style>
+  html, body { height: 100%; overflow: hidden; }
+  body { display: flex; flex-direction: column; background: #FFFFFF; }
+  header {
+    height: 40px; flex: none; display: flex; align-items: center; gap: 8px;
+    padding: 0 6px 0 12px; background: var(--grad); color: #FFFFFF;
+  }
+  header img { width: 18px; height: 18px; filter: brightness(0) invert(1); }
+  header h1 { flex: 1; font-size: 14px; font-weight: 600; letter-spacing: -0.01em; white-space: nowrap; }
+  .hbtn {
+    height: 28px; min-width: 28px; padding: 0 7px; border: 0; border-radius: 8px;
+    background: transparent; color: #FFFFFF; font-size: 14px; font-weight: 600;
+    display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+  }
+  .hbtn:hover { background: rgba(255, 255, 255, 0.18); }
+  .hbtn:focus-visible { box-shadow: 0 0 0 2px #FFFFFF !important; }
+  main { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  textarea {
+    flex: 1; width: 100%; border: 0; resize: none; padding: 14px 14px 8px;
+    font-size: 16px; line-height: 1.45; color: var(--ink); background: #FFFFFF;
+  }
+  textarea::placeholder { color: #A1A1A6; }
+  textarea:focus-visible { box-shadow: none !important; }
+  footer {
+    flex: none; display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    padding: 6px 8px 8px 12px; border-top: 1px solid var(--g1);
+  }
+  footer span { font-size: 11px; color: var(--g3); white-space: nowrap; }
+  .save { min-height: 30px; padding: 0 14px; font-size: 13px; }
+  #list { flex: 1; min-height: 0; overflow-y: auto; margin: 0; padding: 4px 0; list-style: none; }
+  #list button {
+    width: 100%; display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; align-items: center;
+    padding: 8px 12px; border: 0; background: transparent; text-align: left;
+  }
+  #list button:hover { background: var(--lav); }
+  #list .t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13.5px; color: var(--ink); }
+  #list .w { grid-column: 1 / -1; font-size: 11px; color: var(--g3); }
+  .empty { padding: 28px 16px; text-align: center; color: var(--g3); font-size: 13px; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<header>
+  <img src="assets/ring.png" alt="">
+  <h1 id="title">Still capture</h1>
+  <button class="hbtn" id="new" title="New note" aria-label="New note">+</button>
+  <button class="hbtn" id="past" title="Past thoughts" aria-label="Past thoughts">☰ <span id="count">0</span></button>
+  <button class="hbtn" id="close" title="Close (Esc)" aria-label="Close">✕</button>
+</header>
+<main id="note">
+  <label class="sr-only" for="text">Thought</label>
+  <textarea id="text" autofocus placeholder="What's pulling at you? Jot it down and get back to work."></textarea>
+  <footer>
+    <span>Enter saves · Shift+Enter new line</span>
+    <button class="btn btn-primary save" id="save">Save</button>
+  </footer>
+</main>
+<main id="past-view" hidden>
+  <ul id="list" aria-label="Past thoughts"></ul>
+</main>
+<script type="module" src="js/capture.js"></script>
+</body>
+</html>
