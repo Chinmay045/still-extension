@@ -958,7 +958,7 @@ const handlers = {
   openCapture: (m) => openCapture(m.mode),
   saveThought: async (m) => {
     const item = m.id ? await updateParked(m.id, m.text) : await addParked(m.text, m.source || 'capture');
-    if (item && !m.quiet) toast(m.id ? 'Updated. Back to work.' : 'Parked. Back to work.');
+    if (item && !m.quiet) toast(m.id ? 'Updated. Back to work.' : 'Saved to your Bucket. Back to work.');
     return item;
   },
   blockedHit: (m) => blockedHit(m.url),

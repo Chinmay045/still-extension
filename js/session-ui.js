@@ -1,4 +1,4 @@
-// In-session controls: timer with -5 / +5, music, Park a thought, Exit focus.
+// In-session controls: timer with -5 / +5, music, Capture thought, Exit focus.
 import { send, fmtClock, esc, SOUNDS } from './lib.js';
 import { summarize, localOffset, SCORING } from './progress.js';
 
@@ -57,7 +57,7 @@ export function mountSession(el) {
         </div>
       </div>
       <div class="s-row">
-        <button class="btn" data-act="park">Park a thought <kbd>${esc(shortcut)}</kbd></button>
+        <button class="btn" data-act="park">Capture thought <kbd>${esc(shortcut)}</kbd></button>
         <button class="btn btn-primary" data-act="exit">Exit focus</button>
       </div>`;
   }

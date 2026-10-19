@@ -42,7 +42,7 @@
         "default": "Alt+P",
         "mac": "Alt+P"
       },
-      "description": "Park a thought (opens the Still capture box)"
+      "description": "Capture thought (saves it to your Still bucket)"
     }
   },
   "content_scripts": [

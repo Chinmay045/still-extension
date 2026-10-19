@@ -97,7 +97,7 @@
               ${SOUNDS.map(([id, name]) => `<button role="radio" aria-checked="${id === session.sound}" data-sound="${id}"><span class="dot"></span>${name}</button>`).join('')}
             </div>
           </div>
-          <div class="row"><button class="park" data-act="park">Park a thought</button><button class="exit" data-act="exit">Exit focus</button></div>
+          <div class="row"><button class="park" data-act="park">Capture thought</button><button class="exit" data-act="exit">Exit focus</button></div>
           <div class="note">Alt+P parks a thought from any tab.</div>
         </div>` : ''}
         <button class="pill" data-act="toggle" aria-expanded="${open}" aria-label="Still session, ${clock()} left"><img src="${ringUrl}" alt=""><span class="pclock">${clock()}</span></button>
