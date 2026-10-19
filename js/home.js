@@ -170,14 +170,15 @@ function renderDashboard() {
 
   const next = calendar.connected && calendar.nextEvent && calendar.nextEvent.start > Date.now() ? calendar.nextEvent : null;
   const accountRows = calendar.connected
-    ? row(calendar.demo ? 'Demo calendar connected' : 'Google Calendar connected', 'Read-only. Used only to nudge you before events.', '<button class="btn btn-sm btn-ghost" type="button" data-dash="disconnect">Disconnect</button>') +
+    ? row(calendar.demo ? 'Demo calendar connected' : 'Google Calendar connected', 'Read-only. Nudges you before events and blocks sites while they run.', '<button class="btn btn-sm btn-ghost" type="button" data-dash="disconnect">Disconnect</button>') +
       row('Next event', next ? esc(next.title) + ' at ' + fmtTime(next.start) : 'Nothing coming up', '') +
       row('Nudge timing', settings.nudgeLeadMin + ' minutes before each event', '<a class="btn btn-sm" href="#settings">Change</a>')
     : row('Google Calendar not connected', 'Connect to get a nudge before meetings. Read-only.', '<button class="btn btn-sm btn-google" type="button" data-dash="connect"><span class="g-mark" aria-hidden="true">G</span>Sign in with Google</button>');
 
   const sites = settings.sites || [];
   const blockRows =
-    row(sites.length + (sites.length === 1 ? ' site blocked' : ' sites blocked') + ' during focus', sites.length ? sites.map(esc).join(', ') : 'Add the sites that pull you away most.', '<a class="btn btn-sm" href="#settings">Edit</a>') +
+    (state.block ? row('Blocking now', esc(state.block.title) + ' runs until ' + fmtTime(state.block.end), '<button class="btn btn-sm btn-ghost" type="button" data-dash="unblock">Stop</button>') : '') +
+    row(sites.length + (sites.length === 1 ? ' site blocked' : ' sites blocked') + ' during calendar tasks', sites.length ? sites.map(esc).join(', ') : 'Add the sites that pull you away most.', '<a class="btn btn-sm" href="#settings">Edit</a>') +
     row('"Open anyway" wait', settings.overrideWait + ' seconds before a blocked site opens once', '');
 
   const recent = history.slice(-5).reverse();
@@ -198,7 +199,7 @@ $('dash').addEventListener('click', async (e) => {
   const b = e.target.closest('[data-dash]');
   if (!b) return;
   b.disabled = true;
-  const res = await send(b.dataset.dash === 'connect' ? 'calConnect' : 'calDisconnect');
+  const res = await send({ connect: 'calConnect', unblock: 'endBlock' }[b.dataset.dash] || 'calDisconnect');
   b.disabled = false;
   if (res && res.ok === false) {
     toast('Could not connect. Opening Settings to try again.');
@@ -488,6 +489,13 @@ function renderSettings() {
   const { settings, calendar } = state;
   renderChips($('set-sites'), settings.sites);
   setRadio('[data-ow]', 'ow', settings.overrideWait);
+  const blk = state.block;
+  $('block-state').textContent = blk
+    ? 'Blocking now for ' + blk.title + ', until ' + fmtTime(blk.end) + '.'
+    : calendar.connected ? 'On from the start to the end of each event.' : 'Connect Google Calendar below to turn this on.';
+  $('block-actions').innerHTML = blk
+    ? '<button class="btn btn-sm" type="button" data-blk="stop">Stop blocking now</button>'
+    : '<button class="btn btn-sm" type="button" data-blk="test">Test blocking for 2 minutes</button>';
   setRadio('[data-lead]', 'lead', settings.nudgeLeadMin);
   document.querySelectorAll('[data-toggle]').forEach((b) => b.setAttribute('aria-checked', String(!!settings[b.dataset.toggle])));
 
@@ -498,7 +506,7 @@ function renderSettings() {
       (next ? 'Next: ' + next.title + ' at ' + fmtTime(next.start) + '.' : 'Nothing coming up.');
     act.innerHTML = '<button class="btn btn-sm" data-cal="test">Send a test nudge</button><button class="btn btn-sm btn-ghost" data-cal="disconnect">Disconnect</button>';
   } else {
-    $('cal-state').textContent = 'Not connected. Read-only access, used only for focus nudges.';
+    $('cal-state').textContent = 'Not connected. Read-only access, used for nudges and to block sites while a task runs.';
     act.innerHTML = '<button class="btn btn-sm btn-google" data-cal="connect"><span class="g-mark" aria-hidden="true">G</span>Sign in with Google</button><button class="btn btn-sm" data-cal="demo">Try a demo event</button>';
   }
   if (calendar.connected) $('cal-setup').hidden = true;
@@ -524,6 +532,13 @@ document.querySelectorAll('[data-toggle]').forEach((b) => b.addEventListener('cl
   renderSettings();
   renderSetup();
 }));
+$('block-actions').addEventListener('click', async (e) => {
+  const b = e.target.closest('[data-blk]');
+  if (!b) return;
+  b.disabled = true;
+  await send(b.dataset.blk === 'test' ? 'testBlock' : 'endBlock');
+  if (b.dataset.blk === 'test') toast('Blocking for 2 minutes. Try opening youtube.com.');
+});
 $('cal-actions').addEventListener('click', async (e) => {
   const b = e.target.closest('[data-cal]');
   if (!b) return;
@@ -609,9 +624,9 @@ function renderSummary() {
         <span class="muted">focused${s.plannedMin ? ' of ' + s.plannedMin + ' planned' : ''}</span>
       </div>
       <div class="stats">
-        <div class="stat"><b>${s.blocked.length}</b><span>Sites blocked</span></div>
+        ${s.blocked.length ? `<div class="stat"><b>${s.blocked.length}</b><span>Sites blocked</span></div>
         <div class="stat"><b>${s.impulses}</b><span>Impulses blocked</span></div>
-        <div class="stat"><b>${s.overrides}</b><span>Overrides</span></div>
+        <div class="stat"><b>${s.overrides}</b><span>Overrides</span></div>` : ''}
         <div class="stat"><b>${s.parkedCount}</b><span>Thoughts parked</span></div>
       </div>
       ${s.blocked.length ? `<div class="sum-sites">${s.blocked.map(esc).join(' · ')}</div>` : ''}
@@ -637,8 +652,8 @@ chrome.storage.onChanged.addListener(async (changes, area) => {
     }
   }
   if (changes.parked && v === 'bucket') renderBucket();
-  if (v === 'dashboard' && (changes.session || changes.parked || changes.calendar || changes.settings || changes.history)) renderDashboard();
-  if ((changes.calendar || changes.settings) && v === 'settings') renderSettings();
+  if (v === 'dashboard' && (changes.session || changes.parked || changes.calendar || changes.settings || changes.history || changes.block)) renderDashboard();
+  if ((changes.calendar || changes.settings || changes.block) && v === 'settings') renderSettings();
   if (changes.lastSummary && v === 'summary') renderSummary();
   if (changes.prefs && v === 'setup' && !state.session) renderSetup();
 });

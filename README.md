@@ -13,8 +13,8 @@ Stop switching. Start finishing. A Chrome (Manifest V3) focus extension. No buil
 
 | Check | What to do |
 |---|---|
-| Setup and focus circle | Home, **Setup**, type a task, **Start focus**. The circle tab opens. Click it (or press Enter) and you are sent back to your last web tab. |
-| Blocking | During a session, open youtube.com. You get the block page, and the URL is in **Bucket** as a Link. |
+| Setup and focus circle | Home, **Setup**, type a task, **Start focus**. The circle tab opens with **Exit** (top right) and a control bar: timer length (−/+, 5/10/15/25) and music. Click the circle (or press Enter) to start the timer and go back to your last web tab. Nothing is blocked in the circle. |
+| Blocking | Sites are blocked only from a Google Calendar event's start to its end. To try it now: Settings, Blocked sites, **Test blocking for 2 minutes**, then open youtube.com. You get the block page, and the URL is in **Bucket** as a Link. |
 | Override | On the block page, **Open anyway** counts down (Settings, Override wait) and lets you through once. |
 | Alt+P capture | On any tab, press Alt+P (Option+P on Mac). Type, press Enter. The square closes and "Parked. Back to work." shows. ☰ lists past thoughts; click one to edit. |
 | In-session dropdown | Click the timer pill at the bottom right of any page, or the toolbar icon. −5 / +5, switch music, park, exit. |
@@ -42,7 +42,7 @@ Scope is read-only (`calendar.events.readonly`). A public Web Store launch needs
 
 ## Files
 
-- `background.js`: service worker. Session timer (`chrome.alarms`), declarativeNetRequest rules, capture window, badge, calendar polling and nudges.
+- `background.js`: service worker. Session timer (`chrome.alarms`), calendar-task blocking (declarativeNetRequest rules from event start to end, state in `block`), capture window, badge, calendar polling and nudges.
 - `offscreen.html` + `js/audio.js`: the five synthesized sounds (Web Audio, gain x0.75 into a compressor).
 - `home.html`: Home, Setup, Bucket, Settings and Summary (hash routes).
 - `popup.html`, `focus.html`, `blocked.html`, `capture.html`, `content.js` (floating timer and dropdown).

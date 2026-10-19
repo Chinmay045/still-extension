@@ -1,4 +1,4 @@
-import { getAll, send } from './lib.js';
+import { getAll, send, fmtTime } from './lib.js';
 
 const $ = (id) => document.getElementById(id);
 const url = (() => {
@@ -8,16 +8,16 @@ const url = (() => {
 let timer = null;
 
 async function init() {
-  const { session, settings } = await getAll();
-  if (!session) {
-    // Session ended while this tab was open: just go where the user meant to go.
+  const { block, settings } = await getAll();
+  if (!block) {
+    // The calendar task ended while this tab was open: just go where the user meant to go.
     $('open').textContent = 'Continue to site';
     $('back').hidden = true;
     $('open').addEventListener('click', () => { if (url) location.replace(url); });
     return;
   }
-  $('task').innerHTML = 'Your one task: <b></b>';
-  $('task').querySelector('b').textContent = session.task;
+  $('task').innerHTML = 'Your task right now: <b></b> · until ' + fmtTime(block.end);
+  $('task').querySelector('b').textContent = block.title;
   $('task').hidden = false;
 
   const res = url ? await send('blockedHit', { url }) : null;
@@ -26,8 +26,8 @@ async function init() {
     $('note').title = url;
     $('note').hidden = false;
   }
-  const n = res && res.impulses ? res.impulses : session.impulses;
-  $('count').textContent = n + ' blocked this session';
+  const n = res && res.impulses ? res.impulses : block.impulses;
+  $('count').textContent = n + ' blocked during this task';
 
   $('open').addEventListener('click', () => {
     if (timer) return;

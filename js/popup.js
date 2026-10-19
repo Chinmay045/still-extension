@@ -15,7 +15,7 @@ async function render() {
   else {
     if (!$('task').value) $('task').value = prefs.task || '';
     const sound = SOUNDS.find((s) => s.id === prefs.sound);
-    $('idle-meta').textContent = prefs.plannedMin + ' min · ' + (sound ? sound.name : 'Silence') + ' · ' + settings.sites.length + ' sites blocked';
+    $('idle-meta').textContent = prefs.plannedMin + ' min · ' + (sound ? sound.name : 'Silence') + ' · nothing blocked until your calendar task starts';
   }
 }
 

@@ -1,6 +1,6 @@
 // Shared helpers for every Still page and the service worker.
 
-export const DEFAULT_SITES = ['youtube.com', 'x.com', 'reddit.com'];
+export const DEFAULT_SITES = ['youtube.com', 'x.com', 'instagram.com', 'reddit.com'];
 
 // The app owner's Google OAuth client ID ("Web application" type, redirect URI
 // https://hjcpkhjkanikiahcjmhcblnnkloopnmc.chromiumapp.org/). With it set, users
@@ -15,6 +15,7 @@ export const DEFAULT_SETTINGS = {
   nightDim: true,
   calendarConnected: false,
   nudgeLeadMin: 10,
+  calendarBlock: true,
   googleClientId: ''
 };
 
@@ -61,7 +62,7 @@ export function uid() {
 }
 
 export async function getAll() {
-  const r = await chrome.storage.local.get(['settings', 'prefs', 'session', 'parked', 'lastSummary', 'calendar', 'history', 'seenWelcome']);
+  const r = await chrome.storage.local.get(['settings', 'prefs', 'session', 'parked', 'lastSummary', 'calendar', 'history', 'seenWelcome', 'block']);
   return {
     settings: Object.assign({}, DEFAULT_SETTINGS, r.settings || {}),
     prefs: Object.assign({}, DEFAULT_PREFS, r.prefs || {}),
@@ -70,7 +71,8 @@ export async function getAll() {
     lastSummary: r.lastSummary || null,
     calendar: r.calendar || { connected: false, demo: false, nextEvent: null },
     history: r.history || (r.lastSummary ? [r.lastSummary] : []),
-    seenWelcome: !!r.seenWelcome
+    seenWelcome: !!r.seenWelcome,
+    block: r.block || null
   };
 }
 

@@ -6,33 +6,80 @@
 <link rel="stylesheet" href="css/still.css">
 <style>
   html, body { height: 100%; }
-  body { background: #000000; color: #FFFFFF; overflow: hidden; display: flex; align-items: center; justify-content: center; }
-  .wrap { display: flex; flex-direction: column; align-items: center; gap: 34px; padding: 24px; text-align: center; }
+  body { background: #000000; color: #FFFFFF; overflow: hidden; display: flex; flex-direction: column; }
+  :focus-visible { box-shadow: 0 0 0 2px #000000, 0 0 0 4px #9B4DF5 !important; }
+  .top { display: flex; align-items: center; justify-content: space-between; padding: 20px 28px; flex: none; }
   .eyebrow { font-size: 12px; letter-spacing: .3em; text-transform: uppercase; color: rgba(255, 255, 255, .55); }
-  .task { font-family: 'Inter Tight', sans-serif; font-size: 30px; font-weight: 500; letter-spacing: -0.03em; max-width: 720px; }
+  .exit {
+    min-height: 40px; padding: 0 20px; border-radius: 999px; border: 1px solid rgba(255, 255, 255, .28);
+    background: transparent; color: #FFFFFF; font-weight: 500; font-size: 14px;
+  }
+  .exit:hover { background: rgba(255, 255, 255, .1); }
+  .wrap { flex: 1; min-height: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px; padding: 0 24px; text-align: center; }
+  .task { font-family: 'Inter Tight', sans-serif; font-size: 28px; font-weight: 500; letter-spacing: -0.03em; max-width: 720px; }
   .circle {
-    width: min(64vh, 76vw); height: min(64vh, 76vw); border: 0; padding: 0; border-radius: 50%;
+    width: min(46vh, 70vw); height: min(46vh, 70vw); border: 0; padding: 0; border-radius: 50%; flex: none;
     background: transparent; animation: breathe 9s ease-in-out infinite; transition: opacity .6s;
   }
   .circle img { width: 100%; height: 100%; border-radius: 50%; display: block; animation: spin 80s linear infinite; }
-  .circle:focus-visible { box-shadow: 0 0 0 4px #000000, 0 0 0 6px #9B4DF5 !important; }
   body.dim .circle { opacity: .5; }
   body.dim .task, body.dim .hint { opacity: .6; }
   .hint { font-size: 14.5px; color: rgba(255, 255, 255, .6); }
-  .meta { font-size: 13px; color: rgba(255, 255, 255, .42); }
+  .meta { font-size: 13px; color: rgba(255, 255, 255, .42); min-height: 18px; }
+
+  .dock {
+    flex: none; align-self: center; margin: 18px 24px 26px; padding: 14px 18px; max-width: calc(100% - 48px);
+    display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 14px 26px;
+    border-radius: 22px; background: #121016; border: 1px solid rgba(255, 255, 255, .1);
+  }
+  .grp { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: center; }
+  .lbl { font-size: 11px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: rgba(255, 255, 255, .45); }
+  .sep { width: 1px; align-self: stretch; background: rgba(255, 255, 255, .1); }
+  .step {
+    width: 34px; height: 34px; border-radius: 50%; border: 1px solid rgba(255, 255, 255, .2);
+    background: transparent; color: #FFFFFF; font-size: 17px; line-height: 1;
+  }
+  .step:hover, .chipb:hover { background: rgba(255, 255, 255, .1); }
+  .len { font-family: 'Inter Tight', sans-serif; font-size: 20px; font-weight: 500; font-variant-numeric: tabular-nums; min-width: 72px; }
+  .chipb {
+    min-height: 32px; padding: 0 13px; border-radius: 999px; border: 1px solid rgba(255, 255, 255, .16);
+    background: transparent; color: rgba(255, 255, 255, .78); font-size: 13px; white-space: nowrap;
+  }
+  .chipb[aria-checked="true"] { background: #FFFFFF; border-color: #FFFFFF; color: #2A1458; font-weight: 600; }
+  .vol { width: 96px; accent-color: #9B4DF5; }
+  @media (max-width: 1180px) { .sep { display: none; } }
   @keyframes spin { to { transform: rotate(360deg); } }
   @keyframes breathe { 0%, 100% { transform: scale(0.97); } 50% { transform: scale(1.03); } }
+  @media (prefers-reduced-motion: reduce) { .circle, .circle img { animation: none; } }
 </style>
 </head>
 <body>
+<header class="top">
+  <span class="eyebrow">Still · get ready</span>
+  <button class="exit" id="exit" type="button">Exit</button>
+</header>
 <div class="wrap">
-  <span class="eyebrow">Still · one task</span>
   <div class="task" id="task"></div>
-  <button class="circle" id="circle" aria-label="Begin work">
+  <button class="circle" id="circle" aria-label="Begin the timer">
     <img id="img" alt="">
   </button>
-  <div class="hint">Breathe with the circle. Click it, or press Enter, when you are ready to begin.</div>
+  <div class="hint">Breathe with the circle. Click it, or press Enter, to start the timer.</div>
   <div class="meta" id="meta"></div>
+</div>
+<div class="dock" role="group" aria-label="Circle controls">
+  <div class="grp">
+    <span class="lbl" id="len-l">Timer</span>
+    <button class="step" type="button" data-step="-1" aria-label="One minute less">−</button>
+    <span class="len" id="len" aria-live="polite"></span>
+    <button class="step" type="button" data-step="1" aria-label="One minute more">+</button>
+    <div class="grp" role="radiogroup" aria-labelledby="len-l" id="presets"></div>
+  </div>
+  <span class="sep" aria-hidden="true"></span>
+  <div class="grp">
+    <span class="lbl" id="snd-l">Music</span>
+    <div class="grp" role="radiogroup" aria-labelledby="snd-l" id="sounds"></div>
+    <input class="vol" id="vol" type="range" min="0" max="100" step="1" aria-label="Volume">
+  </div>
 </div>
 <script type="module" src="js/focus.js"></script>
 </body>

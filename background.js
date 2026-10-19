@@ -1,5 +1,7 @@
-// Still service worker: owns the session timer, site blocking, capture window,
-// toolbar badge, audio routing and calendar nudges.
+// Still service worker: owns the session timer, calendar-task site blocking,
+// capture window, toolbar badge, audio routing and calendar nudges.
+// The focus session (circle + timer) only primes the mind and never blocks.
+// Sites are blocked from a synced calendar task's start to its end.
 import { getAll, patch, kindOf, uid, normalizeDomain, fmtTime, GOOGLE_CLIENT_ID } from './js/lib.js';
 
 const CAPTURE_SIZE = 288;
@@ -10,6 +12,11 @@ const ICON = 'assets/icon-128.png';
 
 chrome.runtime.onInstalled.addListener(async (details) => {
   const all = await getAll();
+  if (!all.settings.sitesV2) {
+    // Instagram joined the default list when blocking moved to calendar tasks.
+    if (!all.settings.sites.includes('instagram.com')) all.settings.sites.push('instagram.com');
+    all.settings.sitesV2 = true;
+  }
   await chrome.storage.local.set({ settings: all.settings, prefs: all.prefs, parked: all.parked });
   chrome.alarms.create('archive', { delayInMinutes: 1, periodInMinutes: 24 * 60 });
   await syncAfterWake();
@@ -19,9 +26,13 @@ chrome.runtime.onInstalled.addListener(async (details) => {
 chrome.runtime.onStartup.addListener(syncAfterWake);
 
 async function syncAfterWake() {
-  const { session, calendar } = await getAll();
-  if (!session) await clearBlocking();
-  else if (session.phase === 'working' && session.endsAt <= Date.now()) await endSession('timeup');
+  const { session, calendar, block, settings } = await getAll();
+  if (block && block.end > Date.now()) {
+    await applyBlocking(settings.sites);
+    chrome.alarms.create('block-end', { when: block.end });
+  } else if (block) await endBlock();
+  else await clearBlocking();
+  if (session && session.phase === 'working' && session.endsAt <= Date.now()) await endSession('timeup');
   if (calendar.connected) chrome.alarms.create('cal-poll', { delayInMinutes: 0.1, periodInMinutes: 5 });
   await updateBadge();
 }
@@ -36,8 +47,16 @@ async function updateBadge() {
   await chrome.action.setBadgeText({ text: count ? String(count) : '' });
 }
 
-chrome.storage.onChanged.addListener((changes, area) => {
-  if (area === 'local' && changes.parked) updateBadge();
+chrome.storage.onChanged.addListener(async (changes, area) => {
+  if (area !== 'local') return;
+  if (changes.parked) updateBadge();
+  if (changes.settings) {
+    // Keep the live block in step with the Settings list and toggle.
+    const { block, settings } = await getAll();
+    if (block && !settings.calendarBlock) await endBlock();
+    else if (block) await applyBlocking(settings.sites);
+    else if (settings.calendarBlock) await checkBlockNow();
+  }
 });
 
 // ---------- blocking ----------
@@ -119,7 +138,7 @@ async function startSession(cfg) {
     theme: cfg.theme || 'vortex',
     sound: cfg.sound || 'ambient',
     volume: cfg.volume == null ? 70 : cfg.volume,
-    blocked: (cfg.blocked || settings.sites).map(normalizeDomain).filter(Boolean),
+    blocked: [],
     impulses: 0,
     overrides: 0,
     parkedCount: 0,
@@ -127,7 +146,6 @@ async function startSession(cfg) {
   };
   await chrome.storage.local.set({ session });
   await patch('prefs', { task: '', fromCalendar: false });
-  await applyBlocking(session.blocked);
   await audio('audio-play', { sound: session.sound, volume: session.volume });
 
   if (settings.autoCircle) {
@@ -179,6 +197,25 @@ async function leaveTab(tabId) {
   return false;
 }
 
+// One-click Exit from the focus circle: end quietly and go back to work.
+async function exitCircle(tabId) {
+  await chrome.storage.session.remove('circleTabId');
+  await endSession('exit', { silent: true });
+  if (tabId != null && !(await leaveTab(tabId))) {
+    await chrome.tabs.update(tabId, { url: 'chrome://newtab/' }).catch(() => {});
+  }
+  return { ok: true };
+}
+
+async function setLength(min) {
+  const { session } = await getAll();
+  if (!session) return null;
+  if (session.phase === 'working') return adjustTime(Math.round(min) - session.plannedMin);
+  session.plannedMin = Math.max(1, Math.min(240, Math.round(min)));
+  await chrome.storage.local.set({ session });
+  return session;
+}
+
 async function adjustTime(deltaMin) {
   const { session } = await getAll();
   if (!session) return null;
@@ -217,7 +254,6 @@ async function setVolume(volume) {
 async function endSession(reason, opts) {
   const { session, settings } = await getAll();
   chrome.alarms.clear('session-end');
-  await clearBlocking();
   if (!session) return null;
   const now = Date.now();
   const focusedMs = session.phase === 'working' ? Math.min(now, session.endsAt) - session.startedAt : 0;
@@ -232,9 +268,14 @@ async function endSession(reason, opts) {
     endedAt: now,
     reason
   };
-  const { history } = await chrome.storage.local.get('history');
-  const log = (history || []).concat(summary).slice(-300);
-  await chrome.storage.local.set({ session: null, lastSummary: summary, history: log });
+  if (session.phase === 'working') {
+    const { history } = await chrome.storage.local.get('history');
+    const log = (history || []).concat(summary).slice(-300);
+    await chrome.storage.local.set({ session: null, lastSummary: summary, history: log });
+  } else {
+    // Left from the circle before starting: nothing to log.
+    await chrome.storage.local.set({ session: null });
+  }
   await audio('audio-stop');
   if (reason === 'timeup' && settings.chime) await audio('audio-chime', { volume: Math.max(40, session.volume) });
   closeOffscreenLater(reason === 'timeup' ? 3000 : 800);
@@ -364,19 +405,19 @@ async function toast(text) {
 // ---------- block page ----------
 
 async function blockedHit(url) {
-  const { session } = await getAll();
-  if (!session) return { active: false };
-  session.impulses += 1;
-  await chrome.storage.local.set({ session });
+  const { block } = await getAll();
+  if (!block) return { active: false };
+  block.impulses += 1;
+  await chrome.storage.local.set({ block });
   await addParked(url, 'block');
-  return { active: true, impulses: session.impulses, parked: true };
+  return { active: true, impulses: block.impulses, parked: true };
 }
 
 async function allowOnce(url, tabId) {
-  const { session } = await getAll();
-  if (!session) return;
-  session.overrides += 1;
-  await chrome.storage.local.set({ session });
+  const { block } = await getAll();
+  if (!block) return;
+  block.overrides += 1;
+  await chrome.storage.local.set({ block });
   let host = '';
   try { host = new URL(url).hostname; } catch (e) { return; }
   const id = OVERRIDE_RULE_BASE + (Date.now() % 1000);
@@ -393,6 +434,83 @@ async function allowOnce(url, tabId) {
   chrome.tabs.onUpdated.addListener(onUpdated);
   setTimeout(() => { chrome.tabs.onUpdated.removeListener(onUpdated); drop(); }, 30000);
   await chrome.tabs.update(tabId, { url });
+}
+
+// ---------- calendar-task blocking ----------
+
+// Starts (or extends) the block for a calendar task that is running now.
+async function startBlock(e) {
+  const { block, settings } = await getAll();
+  if (!settings.calendarBlock || !(e.end > Date.now())) return block;
+  if (block && block.end > Date.now()) {
+    if (e.end > block.end) {
+      block.end = e.end;
+      await chrome.storage.local.set({ block });
+      chrome.alarms.create('block-end', { when: block.end });
+    }
+    return block;
+  }
+  const next = {
+    eventId: e.id,
+    title: e.title,
+    start: Math.min(e.start, Date.now()),
+    end: e.end,
+    impulses: 0,
+    overrides: 0,
+    test: !!e.test
+  };
+  await chrome.storage.local.set({ block: next });
+  await applyBlocking(settings.sites);
+  chrome.alarms.create('block-end', { when: next.end });
+  const id = 'block|' + Date.now();
+  chrome.notifications.create(id, {
+    type: 'basic',
+    iconUrl: ICON,
+    title: e.title + ' has started',
+    message: 'Distracting sites are blocked until ' + fmtTime(next.end) + '.',
+    silent: true,
+    priority: 0
+  });
+  setTimeout(() => chrome.notifications.clear(id), 6000);
+  return next;
+}
+
+async function endBlock() {
+  chrome.alarms.clear('block-end');
+  await clearBlocking();
+  const { block } = await getAll();
+  if (!block) return null;
+  await chrome.storage.local.set({ block: null });
+  if (!block.test) {
+    const { history } = await chrome.storage.local.get('history');
+    const entry = {
+      kind: 'calendar',
+      task: block.title,
+      minutesFocused: Math.max(0, Math.round((Math.min(Date.now(), block.end) - block.start) / 60000)),
+      plannedMin: Math.round((block.end - block.start) / 60000),
+      blocked: [],
+      impulses: block.impulses,
+      overrides: block.overrides,
+      parkedCount: 0,
+      endedAt: Date.now(),
+      reason: 'calendar'
+    };
+    await chrome.storage.local.set({ history: (history || []).concat(entry).slice(-300) });
+  }
+  return block;
+}
+
+// Starts a block if one of the synced events is running right now.
+async function checkBlockNow() {
+  const { calEvents } = await chrome.storage.local.get('calEvents');
+  const now = Date.now();
+  const live = Object.values(calEvents || {}).filter((e) => e.start <= now + 1000 && e.end > now);
+  for (const e of live) await startBlock(e);
+}
+
+// Lets the user see blocking work without waiting for a real event.
+async function testBlock() {
+  return startBlock({ id: 'test-block', title: 'Test task', start: Date.now(), end: Date.now() + 2 * 60000, test: true });
 }
 
 // ---------- calendar nudges ----------
@@ -464,18 +582,26 @@ async function pollCalendar() {
   else {
     try { events = await fetchEvents(); } catch (e) { return; }
   }
-  const upcoming = events.filter((e) => e.start > Date.now());
+  const now = Date.now();
+  const live = events.filter((e) => e.end > now);
+  const upcoming = live.filter((e) => e.start > now);
   const store = {};
   const { nudged } = await chrome.storage.local.get('nudged');
   const done = nudged || {};
-  for (const e of upcoming) {
+  const alarms = await chrome.alarms.getAll();
+  alarms.filter((a) => a.name.startsWith('blockstart|')).forEach((a) => chrome.alarms.clear(a.name));
+  for (const e of live) {
     store[e.id] = e;
+    if (e.start > now) chrome.alarms.create('blockstart|' + e.id, { when: e.start });
+  }
+  for (const e of upcoming) {
     const when = e.start - settings.nudgeLeadMin * 60000;
-    if (when > Date.now() && done[e.id] !== e.start) chrome.alarms.create('nudge|' + e.id, { when });
+    if (when > now && done[e.id] !== e.start) chrome.alarms.create('nudge|' + e.id, { when });
   }
   calendar.nextEvent = upcoming[0] || null;
-  calendar.lastSync = Date.now();
+  calendar.lastSync = now;
   await chrome.storage.local.set({ calendar, calEvents: store });
+  await checkBlockNow();
 }
 
 async function fireNudge(eventId) {
@@ -498,7 +624,9 @@ async function prepareFromEvent(eventId) {
   const { calEvents } = await chrome.storage.local.get('calEvents');
   const e = (calEvents || {})[eventId];
   if (e) {
-    const mins = Math.max(1, Math.min(240, Math.round((e.end - e.start) / 60000)));
+    // The circle primes you for the time left before the task starts.
+    const left = Math.round((e.start - Date.now()) / 60000);
+    const mins = left >= 1 ? Math.min(60, left) : 5;
     await patch('prefs', { task: e.title, plannedMin: mins, customMin: mins, fromCalendar: true });
   }
   await openHome('setup');
@@ -551,7 +679,8 @@ async function disconnectCalendar() {
     await dropToken();
   }
   const alarms = await chrome.alarms.getAll();
-  alarms.filter((a) => a.name.startsWith('nudge|') || a.name === 'cal-poll').forEach((a) => chrome.alarms.clear(a.name));
+  alarms.filter((a) => a.name.startsWith('nudge|') || a.name.startsWith('blockstart|') || a.name === 'cal-poll').forEach((a) => chrome.alarms.clear(a.name));
+  await endBlock();
   await chrome.storage.local.set({ calendar: { connected: false, demo: false, nextEvent: null }, calEvents: {} });
   await patch('settings', { calendarConnected: false });
   return { ok: true };
@@ -590,6 +719,14 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
     await pollCalendar();
   } else if (alarm.name.startsWith('nudge|')) {
     await fireNudge(alarm.name.slice(6));
+  } else if (alarm.name.startsWith('blockstart|')) {
+    const { calEvents } = await chrome.storage.local.get('calEvents');
+    const e = (calEvents || {})[alarm.name.slice(11)];
+    if (e) await startBlock(e);
+  } else if (alarm.name === 'block-end') {
+    const { block } = await getAll();
+    if (block && block.end > Date.now() + 1000) chrome.alarms.create('block-end', { when: block.end });
+    else await endBlock();
   }
 });
 
@@ -602,6 +739,10 @@ const handlers = {
   setSound: (m) => setSound(m.sound),
   setVolume: (m) => setVolume(Number(m.volume)),
   endSession: () => endSession('exit'),
+  exitCircle: (m, sender) => exitCircle(sender.tab ? sender.tab.id : null),
+  setLength: (m) => setLength(Number(m.minutes) || 10),
+  testBlock: () => testBlock(),
+  endBlock: () => endBlock(),
   openCapture: (m) => openCapture(m.mode),
   saveThought: async (m) => {
     const item = m.id ? await updateParked(m.id, m.text) : await addParked(m.text, m.source || 'capture');
