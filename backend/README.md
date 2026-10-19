@@ -10,7 +10,10 @@ The extension stays plain JS; this app only handles accounts and money.
   payment or task.
 - **Forfeit:** when you confirm "Break the task" on the block page (or stop a pledged task early), the extension calls
   `POST /api/forfeit`. One task can only ever cost its pledge once. The money is recorded as set aside for the charity
-  you picked; nothing is paid out yet.
+  you picked.
+- **Paying the charity:** lost pledges add up as "owed" per charity. Once a month the wallet page's **Pay the charity**
+  section shows a UPI QR with the amount filled in (to the charity's UPI ID, which you copy once from its official site).
+  You pay from your own UPI app and paste the UPI reference, which marks that amount as paid.
 
 ## API
 
@@ -22,10 +25,13 @@ The extension stays plain JS; this app only handles accounts and money.
 | `POST /api/topup/verify` | Checks Razorpay's signature and the order owner, then credits |
 | `POST /api/razorpay/webhook` | Optional backup credit on `payment.captured` |
 | `POST /api/forfeit` | `{ amount, taskKey, taskTitle, site, charity }`. Takes the pledge |
+| `GET /api/payouts` | What you owe each charity, its saved UPI ID and a UPI pay link |
+| `POST /api/payouts/upi` | `{ charity, upiId }`. Saves the charity's UPI ID |
+| `POST /api/payouts` | `{ charity, amount, utr }`. Records a payment you made (never more than you owe) |
 
 ## One-time setup (owner)
 
-1. **Supabase:** create a free project at supabase.com. In **SQL Editor**, paste `supabase/schema.sql` and Run.
+1. **Supabase:** create a free project at supabase.com. In **SQL Editor**, paste `supabase/schema.sql` and Run. (Running it again later is safe; it only adds what's missing.)
 2. **Google sign-in in Supabase:** Authentication, Sign In / Providers, Google: turn it on and paste the client ID and
    secret of the existing Google OAuth client (project still-512106). In Google Cloud, add
    `https://<your-project>.supabase.co/auth/v1/callback` to that client's **Authorized redirect URIs**.

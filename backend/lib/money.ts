@@ -43,3 +43,26 @@ export function forfeitRef(userId: string, taskKey: string): string {
 export function topupRef(paymentId: string): string {
   return 'rzp:' + paymentId;
 }
+
+// Official sites, linked next to each charity so you can check its real UPI ID or bank details.
+export const CHARITY_SITES: Record<string, string> = {
+  'Akshaya Patra': 'https://www.akshayapatra.org',
+  GiveIndia: 'https://www.giveindia.org',
+  CRY: 'https://www.cry.org'
+};
+
+export function isUpiId(v: unknown): boolean {
+  return typeof v === 'string' && /^[A-Za-z0-9._-]{2,256}@[A-Za-z0-9]{2,64}$/.test(v.trim());
+}
+
+// A UPI reference (RRN/UTR) is 12 digits; bank transfers use other lengths, so allow 6 to 30 letters or digits.
+export function isUtr(v: unknown): boolean {
+  return typeof v === 'string' && /^[A-Za-z0-9]{6,30}$/.test(v.trim());
+}
+
+// A UPI intent link with the payee and amount filled in. Scanned as a QR, any UPI app opens it ready to pay.
+export function upiLink(upiId: string, payee: string, amountPaise: number, note: string): string {
+  // The UPI ID goes in raw (it is already validated): some UPI apps don't decode %40.
+  const enc = encodeURIComponent;
+  return `upi://pay?pa=${upiId.trim()}&pn=${enc(payee)}&am=${(amountPaise / 100).toFixed(2)}&cu=INR&tn=${enc(note)}`;
+}

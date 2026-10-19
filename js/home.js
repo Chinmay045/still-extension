@@ -224,6 +224,7 @@ function renderWalletRows() {
   const forfeits = (wallet.txns || []).filter((t) => t.kind === 'forfeit').slice(0, 3);
   return row('Balance', wallet.email ? 'Signed in as ' + esc(wallet.email) : 'Prepaid, test mode', `<span class="dash-val">${rupees(wallet.balancePaise)}</span>`) +
     row('Add money', 'UPI or card through Razorpay, on the wallet page.', '<button class="btn btn-sm" type="button" data-wallet="open">Add money</button>') +
+    (wallet.owedPaise > 0 ? row('Owed to charity: ' + rupees(wallet.owedPaise), 'From tasks you broke. Pay it from your UPI app once a month.', '<button class="btn btn-sm btn-primary" type="button" data-wallet="pay">Pay now</button>') : '') +
     (block ? row(esc(block.title) + ' (now)', pledgeArmed(block) ? rupees(block.pledge * 100) + ' on the line until ' + fmtTime(block.end) : block.forfeited ? 'Broken. ' + rupees(block.pledge * 100) + ' set aside for ' + esc(block.charity) : 'No pledge on this task', '') : '') +
     (upcoming.length
       ? upcoming.map((e) => row(esc(e.title), fmtWhen(e.start) + ' to ' + fmtTime(e.end), pledgeSelect(e.id, pick(e)))).join('')
@@ -254,7 +255,7 @@ async function stopClicked(b) {
 async function walletAction(kind, b) {
   $('wallet-err').hidden = true;
   if (b) b.disabled = true;
-  const res = await send({ signin: 'walletSignIn', signout: 'walletSignOut', open: 'walletOpen', refresh: 'walletRefresh' }[kind]);
+  const res = await send({ signin: 'walletSignIn', signout: 'walletSignOut', open: 'walletOpen', pay: 'walletOpen', refresh: 'walletRefresh' }[kind], kind === 'pay' ? { hash: 'pay' } : null);
   if (b) b.disabled = false;
   if (res && res.ok === false) {
     if (current() === 'settings') {

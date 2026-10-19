@@ -620,7 +620,7 @@ async function walletFetch(path, body) {
 async function walletRefresh() {
   try {
     const data = await walletFetch('/api/wallet');
-    const wallet = { signedIn: true, email: data.email || '', balancePaise: data.balancePaise, txns: data.txns || [], lastSync: Date.now() };
+    const wallet = { signedIn: true, email: data.email || '', balancePaise: data.balancePaise, owedPaise: data.owedPaise || 0, txns: data.txns || [], lastSync: Date.now() };
     await chrome.storage.local.set({ wallet });
     return { ok: true, wallet };
   } catch (e) {
@@ -628,10 +628,10 @@ async function walletRefresh() {
   }
 }
 
-async function walletOpen() {
+async function walletOpen(hash) {
   const base = await walletBase();
   if (!base) return { ok: false, error: 'The wallet server is not set up yet' };
-  await chrome.tabs.create({ url: base + '/wallet' });
+  await chrome.tabs.create({ url: base + '/wallet' + (hash ? '#' + hash : '') });
   return { ok: true };
 }
 
@@ -931,7 +931,7 @@ const handlers = {
   walletSignIn: () => walletSignIn(),
   walletSignOut: () => walletSignOut(),
   walletRefresh: () => walletRefresh(),
-  walletOpen: () => walletOpen(),
+  walletOpen: (m) => walletOpen(m.hash),
   walletBase: () => walletBase(),
   openCapture: (m) => openCapture(m.mode),
   saveThought: async (m) => {

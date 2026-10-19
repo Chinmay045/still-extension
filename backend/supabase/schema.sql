@@ -87,3 +87,76 @@ revoke all on function public.wallet_topup(uuid, bigint, text) from public, anon
 revoke all on function public.wallet_forfeit(uuid, bigint, text, text, text, text) from public, anon, authenticated;
 grant execute on function public.wallet_topup(uuid, bigint, text) to service_role;
 grant execute on function public.wallet_forfeit(uuid, bigint, text, text, text, text) to service_role;
+
+-- ---------- Monthly charity payouts (added 2026-10-19) ----------
+-- Lost pledges pile up as "owed" per charity. Once a month you pay the charity
+-- yourself by UPI and record the UPI reference here, which clears what you owed.
+
+create table if not exists public.charity_payouts (
+  id bigserial primary key,
+  user_id uuid not null references auth.users (id) on delete cascade,
+  charity text not null,
+  amount_paise bigint not null check (amount_paise > 0),
+  utr text not null,
+  paid_at timestamptz not null default now(),
+  unique (user_id, utr)
+);
+
+-- The charity's UPI ID, saved once per person so the QR code is ready next month.
+create table if not exists public.charity_upi (
+  user_id uuid not null references auth.users (id) on delete cascade,
+  charity text not null,
+  upi_id text not null,
+  primary key (user_id, charity)
+);
+
+alter table public.charity_payouts enable row level security;
+alter table public.charity_upi enable row level security;
+drop policy if exists "read own payouts" on public.charity_payouts;
+create policy "read own payouts" on public.charity_payouts for select using (auth.uid() = user_id);
+drop policy if exists "read own charity upi" on public.charity_upi;
+create policy "read own charity upi" on public.charity_upi for select using (auth.uid() = user_id);
+
+-- What you still owe each charity: lost pledges minus payouts already recorded.
+create or replace function public.charity_owed(p_user uuid)
+returns table (charity text, owed_paise bigint, forfeits integer, first_at timestamptz)
+language sql security definer set search_path = public as $$
+  with lost as (
+    select t.charity, sum(t.amount_paise) as amt, count(*)::int as n, min(t.created_at) as first_at
+    from wallet_txns t where t.user_id = p_user and t.kind = 'forfeit' group by t.charity
+  ), paid as (
+    select p.charity, sum(p.amount_paise) as amt from charity_payouts p where p.user_id = p_user group by p.charity
+  )
+  select lost.charity, lost.amt - coalesce(paid.amt, 0), lost.n, lost.first_at
+  from lost left join paid on paid.charity = lost.charity
+  where lost.amt - coalesce(paid.amt, 0) > 0
+  order by 2 desc;
+$$;
+
+-- Records a payment you made to a charity. Refuses more than you owe or a reused UPI reference.
+create or replace function public.record_payout(p_user uuid, p_charity text, p_amount bigint, p_utr text)
+returns table (ok boolean, reason text, owed_paise bigint)
+language plpgsql security definer set search_path = public as $$
+declare
+  v_owed bigint;
+begin
+  -- Serialise payouts per person so two tabs can't both clear the same debt.
+  perform 1 from wallets w where w.user_id = p_user for update;
+  select coalesce(o.owed_paise, 0) into v_owed from charity_owed(p_user) o where o.charity = p_charity;
+  v_owed := coalesce(v_owed, 0);
+  if p_amount <= 0 or p_amount > v_owed then
+    return query select false, 'more than you owe', v_owed;
+    return;
+  end if;
+  if exists (select 1 from charity_payouts c where c.user_id = p_user and c.utr = p_utr) then
+    return query select false, 'reference already used', v_owed;
+    return;
+  end if;
+  insert into charity_payouts (user_id, charity, amount_paise, utr) values (p_user, p_charity, p_amount, p_utr);
+  return query select true, null::text, v_owed - p_amount;
+end $$;
+
+revoke all on function public.charity_owed(uuid) from public, anon, authenticated;
+revoke all on function public.record_payout(uuid, text, bigint, text) from public, anon, authenticated;
+grant execute on function public.charity_owed(uuid) to service_role;
+grant execute on function public.record_payout(uuid, text, bigint, text) to service_role;

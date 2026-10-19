@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { createClient, type Session } from '@supabase/supabase-js';
+import QRCode from 'qrcode';
 
 type Txn = {
   id: number;
@@ -14,6 +15,10 @@ type Txn = {
   created_at: string;
 };
 type Wallet = { email: string; balancePaise: number; txns: Txn[] };
+type Owed = { charity: string; owedPaise: number; upiId: string; site: string; payLink: string };
+type Payout = { id: number; charity: string; amount_paise: number; utr: string; paid_at: string };
+type Payouts = { owed: Owed[]; payouts: Payout[] };
+type Api = (path: string, body?: unknown) => Promise<any>;
 
 declare global {
   interface Window { Razorpay?: new (opts: Record<string, unknown>) => { open: () => void; on: (e: string, fn: (r: any) => void) => void } }
@@ -66,10 +71,21 @@ export default function WalletPage() {
     return data;
   }, [session]);
 
+  const [payouts, setPayouts] = useState<Payouts | null>(null);
+
   const refresh = useCallback(async () => {
     if (!session) return;
-    try { setWallet(await api('/api/wallet')); } catch (e) { setErr((e as Error).message); }
+    try {
+      const [w, p] = await Promise.all([api('/api/wallet'), api('/api/payouts')]);
+      setWallet(w);
+      setPayouts(p);
+    } catch (e) { setErr((e as Error).message); }
   }, [api, session]);
+
+  // Opened from Still's "Pay now": jump to the charity section once it has loaded.
+  useEffect(() => {
+    if (payouts && window.location.hash === '#pay') document.getElementById('pay')?.scrollIntoView();
+  }, [payouts]);
 
   useEffect(() => { refresh(); }, [refresh]);
 
@@ -166,6 +182,23 @@ export default function WalletPage() {
               </div>
             </section>
 
+            <section className="group" id="pay">
+              <h2>Pay the charity</h2>
+              <p className="muted small sub">Broken pledges leave your wallet straight away. Once a month, send what you owe to the charity from your own UPI app and mark it paid here.</p>
+              <div className="card list">
+                {payouts && payouts.owed.length === 0 && (
+                  <div className="row"><div className="row-text"><b>You owe nothing</b><span className="muted small">Break a task and its pledge shows up here.</span></div></div>
+                )}
+                {payouts?.owed.map((o) => <PayRow key={o.charity} owed={o} api={api} onDone={refresh} />)}
+                {payouts?.payouts.map((p) => (
+                  <div className="row" key={'p' + p.id}>
+                    <div className="row-text"><b>Paid {p.charity}</b><span className="muted small">{when(p.paid_at)} · UPI ref {p.utr}</span></div>
+                    <span className="val plus">{rupees(p.amount_paise)}</span>
+                  </div>
+                ))}
+              </div>
+            </section>
+
             <section className="group">
               <h2>Add money</h2>
               <div className="card list">
@@ -211,5 +244,60 @@ export default function WalletPage() {
         )}
       </main>
     </>
+  );
+}
+
+// One charity you owe: save its UPI ID once, scan the QR (amount filled in), then paste the UPI reference.
+function PayRow({ owed, api, onDone }: { owed: Owed; api: Api; onDone: () => Promise<void> }) {
+  const [qr, setQr] = useState('');
+  const [editing, setEditing] = useState(!owed.upiId);
+  const [upi, setUpi] = useState(owed.upiId);
+  const [utr, setUtr] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+
+  useEffect(() => {
+    if (!owed.payLink) { setQr(''); return; }
+    QRCode.toDataURL(owed.payLink, { width: 336, margin: 1, color: { dark: '#1D1D1F', light: '#FFFFFF' } }).then(setQr, () => setQr(''));
+  }, [owed.payLink]);
+
+  async function run(fn: () => Promise<unknown>) {
+    setBusy(true); setErr('');
+    try { await fn(); await onDone(); } catch (e) { setErr((e as Error).message); } finally { setBusy(false); }
+  }
+  const saveUpi = () => run(async () => { await api('/api/payouts/upi', { charity: owed.charity, upiId: upi }); setEditing(false); });
+  const markPaid = () => run(async () => { await api('/api/payouts', { charity: owed.charity, amount: owed.owedPaise / 100, utr }); setUtr(''); });
+
+  return (
+    <div className="pay-item">
+      <div className="row">
+        <div className="row-text"><b>{owed.charity}</b><span className="muted small">From tasks you broke</span></div>
+        <span className="val minus">{rupees(owed.owedPaise)}</span>
+      </div>
+      {editing ? (
+        <div className="pay-step">
+          <span className="muted small">Copy the charity&apos;s UPI ID from its official donate page{owed.site && <> (<a href={owed.site} target="_blank" rel="noopener noreferrer">{owed.site.replace('https://www.', '')}</a>)</>}. You only do this once.</span>
+          <div className="inline">
+            <input value={upi} onChange={(e) => setUpi(e.target.value)} placeholder="charity@bank" aria-label={owed.charity + ' UPI ID'} />
+            <button className="btn btn-primary btn-sm" disabled={busy} onClick={saveUpi}>Save</button>
+          </div>
+        </div>
+      ) : (
+        <div className="pay-step qr-step">
+          {qr && <img className="qr" src={qr} alt={'UPI QR code to pay ' + rupees(owed.owedPaise) + ' to ' + owed.charity} />}
+          <div className="qr-side">
+            <b>Scan with GPay, PhonePe or Paytm</b>
+            <span className="muted small">The amount {rupees(owed.owedPaise)} is filled in. Paying to <b>{owed.upiId}</b> <button className="link" onClick={() => setEditing(true)}>Change</button></span>
+            <a className="btn btn-sm" href={owed.payLink}>Open UPI app</a>
+            <span className="muted small">Paid? Paste the 12-digit UPI reference from your app.</span>
+            <div className="inline">
+              <input value={utr} onChange={(e) => setUtr(e.target.value.replace(/\s/g, ''))} inputMode="numeric" placeholder="UPI reference" aria-label="UPI reference number" />
+              <button className="btn btn-primary btn-sm" disabled={busy || !utr} onClick={markPaid}>Mark as paid</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {err && <p className="err" role="alert">{err}</p>}
+    </div>
   );
 }
