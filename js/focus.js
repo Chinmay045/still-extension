@@ -45,10 +45,19 @@ function render() {
   $('sounds').innerHTML = SOUNDS.map((s) => `<button type="button" class="chipb" role="radio" aria-checked="${s.id === session.sound}" data-sound="${s.id}" title="${esc(s.desc)}">${esc(SHORT[s.id] || s.name)}</button>`).join('');
 }
 
+// A circle tab left open across an extension reload or update loses its link to
+// Still: every message comes back empty. Instead of buttons that silently do
+// nothing, reload into the live extension.
+function reconnect(hash) {
+  if (hash) location.replace('home.html#' + hash);
+  else location.reload();
+}
+
 async function exit() {
   if (leaving) return;
   leaving = true;
-  await send('exitCircle');
+  const res = await send('exitCircle');
+  if (!res) reconnect('dashboard');
 }
 
 document.querySelector('.dock').addEventListener('click', async (e) => {
@@ -59,6 +68,7 @@ document.querySelector('.dock').addEventListener('click', async (e) => {
   else if (b.dataset.min) next = await send('setLength', { minutes: Number(b.dataset.min) });
   else if (b.dataset.sound) next = await send('setSound', { sound: b.dataset.sound });
   if (next) session = next;
+  else return reconnect();
   const key = b.dataset.step ? `[data-step="${b.dataset.step}"]` : b.dataset.min ? `[data-min="${b.dataset.min}"]` : `[data-sound="${b.dataset.sound}"]`;
   render();
   const again = document.querySelector(key);
