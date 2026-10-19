@@ -1,4 +1,4 @@
-import { getAll, patch, send, esc, stillify, fmtWhen, fmtTime, ageDays, normalizeDomain, reducedMotion, KINDS, SOUNDS, THEMES } from './lib.js';
+import { GOOGLE_CLIENT_ID, getAll, patch, send, esc, stillify, fmtWhen, fmtTime, ageDays, normalizeDomain, reducedMotion, KINDS, SOUNDS, THEMES } from './lib.js';
 import { mountVolume } from './volume.js';
 import { mountSession } from './session-ui.js';
 import { SoundEngine } from './audio.js';
@@ -412,8 +412,7 @@ function renderSettings() {
     act.innerHTML = '<button class="btn btn-sm" data-cal="test">Send a test nudge</button><button class="btn btn-sm btn-ghost" data-cal="disconnect">Disconnect</button>';
   } else {
     $('cal-state').textContent = 'Not connected. Read-only access, used only for focus nudges.';
-    act.innerHTML = '<button class="btn btn-sm btn-primary" data-cal="connect">Connect Google Calendar</button><button class="btn btn-sm" data-cal="demo">Try a demo event</button>' +
-      (settings.googleClientId ? '<button class="btn btn-sm btn-ghost" data-cal="setup">Change client ID</button>' : '');
+    act.innerHTML = '<button class="btn btn-sm btn-google" data-cal="connect"><span class="g-mark" aria-hidden="true">G</span>Sign in with Google</button><button class="btn btn-sm" data-cal="demo">Try a demo event</button>';
   }
   if (calendar.connected) $('cal-setup').hidden = true;
   if (document.activeElement !== $('client-id')) $('client-id').value = settings.googleClientId || '';
@@ -444,7 +443,7 @@ $('cal-actions').addEventListener('click', async (e) => {
   $('cal-err').hidden = true;
   b.disabled = true;
   const kind = b.dataset.cal;
-  if (kind === 'setup' || (kind === 'connect' && !state.settings.googleClientId)) {
+  if (kind === 'connect' && !GOOGLE_CLIENT_ID && !state.settings.googleClientId) {
     b.disabled = false;
     openCalSetup();
     return;

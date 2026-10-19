@@ -2,6 +2,11 @@
 
 export const DEFAULT_SITES = ['youtube.com', 'x.com', 'reddit.com'];
 
+// The app owner's Google OAuth client ID ("Web application" type, redirect URI
+// https://hjcpkhjkanikiahcjmhcblnnkloopnmc.chromiumapp.org/). With it set, users
+// connect with one Google sign-in and never see any setup.
+export const GOOGLE_CLIENT_ID = '';
+
 export const DEFAULT_SETTINGS = {
   sites: DEFAULT_SITES.slice(),
   overrideWait: 30,

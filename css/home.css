@@ -244,3 +244,7 @@ main:focus { outline: none; }
 .cal-setup a { font-weight: 600; }
 .copy-row { display: flex; align-items: center; gap: 8px; margin-top: 6px; flex-wrap: wrap; }
 .copy-row code { padding: 6px 10px; border-radius: 8px; background: #FFFFFF; border: 1px solid var(--lav-border); font-size: 13px; word-break: break-all; }
+
+.btn-google { background: #FFFFFF; border: 1px solid #DADCE0; color: #1F1F1F; font-weight: 600; }
+.btn-google:hover { background: #F8F9FA; }
+.g-mark { width: 18px; height: 18px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-weight: 800; font-size: 13px; color: #FFFFFF; background: conic-gradient(#EA4335 0 25%, #FBBC05 0 50%, #34A853 0 75%, #4285F4 0); }

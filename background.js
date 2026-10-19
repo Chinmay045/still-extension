@@ -1,6 +1,6 @@
 // Still service worker: owns the session timer, site blocking, capture window,
 // toolbar badge, audio routing and calendar nudges.
-import { getAll, patch, kindOf, uid, normalizeDomain, fmtTime } from './js/lib.js';
+import { getAll, patch, kindOf, uid, normalizeDomain, fmtTime, GOOGLE_CLIENT_ID } from './js/lib.js';
 
 const CAPTURE_SIZE = 288;
 const OVERRIDE_RULE_BASE = 9000;
@@ -413,8 +413,8 @@ async function getToken(interactive) {
   const cached = await chrome.storage.session.get(['calToken', 'calTokenExp']);
   if (cached.calToken && cached.calTokenExp > Date.now() + 60000) return cached.calToken;
   const { settings } = await getAll();
-  const clientId = (settings.googleClientId || '').trim();
-  if (!clientId) throw new Error('Paste your Google OAuth client ID first');
+  const clientId = (settings.googleClientId || GOOGLE_CLIENT_ID || '').trim();
+  if (!clientId) throw new Error('Google sign-in is not set up in this build yet');
   const q = new URLSearchParams({
     client_id: clientId,
     response_type: 'token',
@@ -516,7 +516,7 @@ chrome.notifications.onClicked.addListener(async (id) => {
 });
 
 async function connectCalendar(clientId) {
-  if (clientId != null) {
+  if (clientId) {
     await patch('settings', { googleClientId: String(clientId).trim() });
     await dropToken();
   }
