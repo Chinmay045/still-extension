@@ -232,7 +232,9 @@ async function endSession(reason, opts) {
     endedAt: now,
     reason
   };
-  await chrome.storage.local.set({ session: null, lastSummary: summary });
+  const { history } = await chrome.storage.local.get('history');
+  const log = (history || []).concat(summary).slice(-300);
+  await chrome.storage.local.set({ session: null, lastSummary: summary, history: log });
   await audio('audio-stop');
   if (reason === 'timeup' && settings.chime) await audio('audio-chime', { volume: Math.max(40, session.volume) });
   closeOffscreenLater(reason === 'timeup' ? 3000 : 800);

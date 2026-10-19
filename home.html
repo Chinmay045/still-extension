@@ -12,8 +12,9 @@
 <body>
 <a class="skip sr-only" href="#main">Skip to content</a>
 <nav class="nav" aria-label="Main">
-  <a href="#home" class="brand" aria-label="Still home"><img src="assets/logo.png" alt="Still"></a>
+  <a href="#dashboard" class="brand" aria-label="Still dashboard"><img src="assets/logo.png" alt="Still"></a>
   <div class="nav-links">
+    <a href="#dashboard" data-nav="dashboard">Dashboard</a>
     <a href="#setup" data-nav="setup">Setup</a>
     <a href="#bucket" data-nav="bucket">Bucket <span class="badge" id="nav-badge" hidden></span></a>
     <a href="#settings" data-nav="settings">Settings</a>
@@ -87,9 +88,19 @@
     <div class="cta">
       <img src="assets/logo.png" alt="Still" class="cta-logo">
       <p class="cta-line">Your next hour, back to you.</p>
-      <button class="btn btn-primary" id="add-chrome" type="button">Add to Chrome</button>
+      <a class="btn btn-primary" href="#dashboard">Open your dashboard</a>
     </div>
   </div>
+</section>
+
+<!-- DASHBOARD -->
+<section class="view page" id="view-dashboard" hidden>
+  <header class="page-head">
+    <h1 id="dash-hello">Hello.</h1>
+    <p class="muted" id="dash-date"></p>
+  </header>
+  <div id="dash"></div>
+  <a class="dash-tour" href="#home">What is <span class="still-word">Still</span>? Take the tour</a>
 </section>
 
 <!-- SETUP -->

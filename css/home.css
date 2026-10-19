@@ -241,3 +241,15 @@ main:focus { outline: none; }
 .btn-google { background: #FFFFFF; border: 1px solid #DADCE0; color: #1F1F1F; font-weight: 600; }
 .btn-google:hover { background: #F8F9FA; }
 .g-mark { width: 18px; height: 18px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-weight: 800; font-size: 13px; color: #FFFFFF; background: conic-gradient(#EA4335 0 25%, #FBBC05 0 50%, #34A853 0 75%, #4285F4 0); }
+
+/* Dashboard */
+#dash { display: flex; flex-direction: column; gap: 36px; }
+.dash-group { display: flex; flex-direction: column; gap: 12px; }
+.dash-list { padding: 4px 22px; }
+.dash-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 64px; padding: 12px 0; border-top: 1px solid var(--g1); }
+.dash-row:first-child { border-top: 0; }
+.dash-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.dash-text b { font-weight: 600; font-size: 15px; overflow-wrap: anywhere; }
+.dash-row > .btn, .dash-row > .kind { flex-shrink: 0; }
+.dash-val { flex-shrink: 0; font-family: 'Inter Tight', sans-serif; font-size: 20px; font-weight: 500; letter-spacing: -0.02em; }
+.dash-tour { align-self: flex-start; font-size: 14px; font-weight: 500; color: var(--v3); }

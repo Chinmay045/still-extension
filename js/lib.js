@@ -61,14 +61,16 @@ export function uid() {
 }
 
 export async function getAll() {
-  const r = await chrome.storage.local.get(['settings', 'prefs', 'session', 'parked', 'lastSummary', 'calendar']);
+  const r = await chrome.storage.local.get(['settings', 'prefs', 'session', 'parked', 'lastSummary', 'calendar', 'history', 'seenWelcome']);
   return {
     settings: Object.assign({}, DEFAULT_SETTINGS, r.settings || {}),
     prefs: Object.assign({}, DEFAULT_PREFS, r.prefs || {}),
     session: r.session || null,
     parked: r.parked || [],
     lastSummary: r.lastSummary || null,
-    calendar: r.calendar || { connected: false, demo: false, nextEvent: null }
+    calendar: r.calendar || { connected: false, demo: false, nextEvent: null },
+    history: r.history || (r.lastSummary ? [r.lastSummary] : []),
+    seenWelcome: !!r.seenWelcome
   };
 }
 

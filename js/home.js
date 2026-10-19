@@ -4,20 +4,22 @@ import { mountSession } from './session-ui.js';
 import { SoundEngine } from './audio.js';
 
 const $ = (id) => document.getElementById(id);
-const VIEWS = ['home', 'setup', 'bucket', 'settings', 'summary'];
+const VIEWS = ['dashboard', 'home', 'setup', 'bucket', 'settings', 'summary'];
 let state = await getAll();
 let reviewed = 0;
 
 // ---------- router ----------
 
 function route() {
-  const name = VIEWS.includes(location.hash.slice(1)) ? location.hash.slice(1) : 'home';
+  const name = current();
   VIEWS.forEach((v) => { $('view-' + v).hidden = v !== name; });
   document.querySelectorAll('[data-nav]').forEach((a) => {
     if (a.dataset.nav === name) a.setAttribute('aria-current', 'page');
     else a.removeAttribute('aria-current');
   });
   document.title = name === 'home' ? 'Still' : 'Still · ' + name[0].toUpperCase() + name.slice(1);
+  // The tour shows on first open; every open after that lands on the dashboard.
+  if (name === 'home' && !state.seenWelcome) chrome.storage.local.set({ seenWelcome: true });
   if (name !== 'setup') stopPreview();
   if (name === 'bucket') reviewed = 0;
   renderView(name);
@@ -26,6 +28,7 @@ function route() {
 }
 
 function renderView(name) {
+  if (name === 'dashboard') renderDashboard();
   if (name === 'home') renderHome();
   if (name === 'setup') renderSetup();
   if (name === 'bucket') renderBucket();
@@ -34,7 +37,9 @@ function renderView(name) {
 }
 
 function current() {
-  return VIEWS.includes(location.hash.slice(1)) ? location.hash.slice(1) : 'home';
+  const h = location.hash.slice(1);
+  if (VIEWS.includes(h)) return h;
+  return state.seenWelcome ? 'dashboard' : 'home';
 }
 
 function toast(text) {
@@ -117,7 +122,89 @@ $('to-compare').addEventListener('click', () => {
   $('vs-range').focus({ preventScroll: true });
 });
 $('vs-range').addEventListener('input', (e) => { $('vs').style.setProperty('--split', e.target.value + '%'); });
-$('add-chrome').addEventListener('click', () => toast('Still is already in your Chrome. Press Alt+P anytime to park a thought.'));
+
+// ---------- dashboard ----------
+
+const DAY = 86400000;
+
+function minutesLabel(m) {
+  if (m < 60) return m + ' min';
+  return Math.floor(m / 60) + ' h' + (m % 60 ? ' ' + (m % 60) + ' min' : '');
+}
+
+function row(title, sub, right) {
+  return `<div class="dash-row"><div class="dash-text"><b>${title}</b>${sub ? `<span class="muted small">${sub}</span>` : ''}</div>${right || ''}</div>`;
+}
+
+function group(title, rows) {
+  return `<section class="dash-group"><h2 class="h2">${title}</h2><div class="card dash-list">${rows}</div></section>`;
+}
+
+function renderDashboard() {
+  const { session, history, parked, calendar, settings } = state;
+  const now = new Date();
+  const hour = now.getHours();
+  $('dash-hello').textContent = hour < 12 ? 'Good morning.' : hour < 17 ? 'Good afternoon.' : 'Good evening.';
+  $('dash-date').textContent = now.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' }) + '. Everything you control in Still, in one place.';
+
+  const startToday = new Date(now.toDateString()).getTime();
+  const weekAgo = Date.now() - 7 * DAY;
+  const today = history.filter((s) => s.endedAt >= startToday);
+  const week = history.filter((s) => s.endedAt >= weekAgo);
+  const sum = (list, k) => list.reduce((n, s) => n + (Number(s[k]) || 0), 0);
+  const fresh = parked.filter((p) => p.status === 'new').sort((a, b) => b.createdAt - a.createdAt);
+
+  const nowRows = session
+    ? row('Focusing on ' + esc(session.task), session.phase === 'working' ? 'Ends at ' + fmtTime(session.endsAt) : 'Waiting in the focus circle', '<a class="btn btn-sm" href="#setup">Open session</a>')
+    : row('No session running', 'Name one task and pick how long.', '<a class="btn btn-sm btn-primary" href="#setup">Set up a session</a>');
+
+  const focusRows =
+    row('Focus time today', today.length + (today.length === 1 ? ' session' : ' sessions'), `<span class="dash-val">${minutesLabel(sum(today, 'minutesFocused'))}</span>`) +
+    row('This week', week.length + (week.length === 1 ? ' session' : ' sessions') + ' in the last 7 days', `<span class="dash-val">${minutesLabel(sum(week, 'minutesFocused'))}</span>`) +
+    row('Distractions stopped this week', 'Times a blocked site tried to pull you away', `<span class="dash-val">${sum(week, 'impulses')}</span>`) +
+    row('Thoughts parked this week', 'Saved to the bucket instead of switching tabs', `<span class="dash-val">${sum(week, 'parkedCount')}</span>`);
+
+  const bucketRows =
+    row(fresh.length ? fresh.length + (fresh.length === 1 ? ' thought waiting' : ' thoughts waiting') : 'Bucket is empty', fresh.length ? 'Review them in about a minute.' : 'Press Alt+P anytime to park a thought.', fresh.length ? '<a class="btn btn-sm" href="#bucket">Review bucket</a>' : '') +
+    fresh.slice(0, 3).map((p) => row(esc(p.text), fmtWhen(p.createdAt), `<span class="kind kind-${p.kind}">${KINDS[p.kind].label}</span>`)).join('');
+
+  const next = calendar.connected && calendar.nextEvent && calendar.nextEvent.start > Date.now() ? calendar.nextEvent : null;
+  const accountRows = calendar.connected
+    ? row(calendar.demo ? 'Demo calendar connected' : 'Google Calendar connected', 'Read-only. Used only to nudge you before events.', '<button class="btn btn-sm btn-ghost" type="button" data-dash="disconnect">Disconnect</button>') +
+      row('Next event', next ? esc(next.title) + ' at ' + fmtTime(next.start) : 'Nothing coming up', '') +
+      row('Nudge timing', settings.nudgeLeadMin + ' minutes before each event', '<a class="btn btn-sm" href="#settings">Change</a>')
+    : row('Google Calendar not connected', 'Connect to get a nudge before meetings. Read-only.', '<button class="btn btn-sm btn-google" type="button" data-dash="connect"><span class="g-mark" aria-hidden="true">G</span>Sign in with Google</button>');
+
+  const sites = settings.sites || [];
+  const blockRows =
+    row(sites.length + (sites.length === 1 ? ' site blocked' : ' sites blocked') + ' during focus', sites.length ? sites.map(esc).join(', ') : 'Add the sites that pull you away most.', '<a class="btn btn-sm" href="#settings">Edit</a>') +
+    row('"Open anyway" wait', settings.overrideWait + ' seconds before a blocked site opens once', '');
+
+  const recent = history.slice(-5).reverse();
+  const recentRows = recent.length
+    ? recent.map((s) => row(esc(s.task || 'Focus session'), fmtWhen(s.endedAt), `<span class="dash-val">${minutesLabel(s.minutesFocused)}</span>`)).join('')
+    : row('No sessions yet', 'Your sessions show up here after they end.', '');
+
+  $('dash').innerHTML =
+    group('Right now', nowRows) +
+    group('Your focus', focusRows) +
+    group('Bucket', bucketRows) +
+    group('Google account', accountRows) +
+    group('Blocking', blockRows) +
+    group('Recent sessions', recentRows);
+}
+
+$('dash').addEventListener('click', async (e) => {
+  const b = e.target.closest('[data-dash]');
+  if (!b) return;
+  b.disabled = true;
+  const res = await send(b.dataset.dash === 'connect' ? 'calConnect' : 'calDisconnect');
+  b.disabled = false;
+  if (res && res.ok === false) {
+    toast('Could not connect. Opening Settings to try again.');
+    location.hash = 'settings';
+  }
+});
 
 // ---------- setup ----------
 
@@ -550,6 +637,7 @@ chrome.storage.onChanged.addListener(async (changes, area) => {
     }
   }
   if (changes.parked && v === 'bucket') renderBucket();
+  if (v === 'dashboard' && (changes.session || changes.parked || changes.calendar || changes.settings || changes.history)) renderDashboard();
   if ((changes.calendar || changes.settings) && v === 'settings') renderSettings();
   if (changes.lastSummary && v === 'summary') renderSummary();
   if (changes.prefs && v === 'setup' && !state.session) renderSetup();
