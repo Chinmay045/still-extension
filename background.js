@@ -817,11 +817,12 @@ async function pollCalendar() {
     if (e.start > now) chrome.alarms.create('blockstart|' + e.id, { when: e.start });
   }
   const late = [];
-  for (const e of upcoming) {
+  for (const e of live) {
     const when = e.start - settings.nudgeLeadMin * 60000;
     if (done[e.id] === e.start) continue;
     if (when > now) chrome.alarms.create('nudge|' + e.id, { when });
-    // Created (or seen) inside the nudge window, e.g. added 3 minutes before it starts.
+    // Inside the nudge window or already running (added late, Chrome was closed, or just
+    // updated): open it now. It stays until the user closes it or the event ends.
     else late.push(e.id);
   }
   calendar.nextEvent = upcoming[0] || null;
@@ -873,13 +874,14 @@ async function openNudge(eventId) {
   chrome.windows.update(win.id, { focused: true, drawAttention: true }).catch(() => {});
 }
 
-// Focus now: the event becomes the session, as long as the event, and the circle opens.
+// Focus now: the event becomes the session and the circle opens.
 async function focusFromEvent(eventId) {
   const { calEvents } = await chrome.storage.local.get('calEvents');
   const e = (calEvents || {})[eventId];
   if (!e) return null;
   const { prefs } = await getAll();
-  const mins = Math.max(1, Math.min(240, Math.round((e.end - e.start) / 60000)));
+  // Once the event has started, focus for the time it has left.
+  const mins = Math.max(1, Math.min(240, Math.round((e.end - Math.max(e.start, Date.now())) / 60000)));
   return startSession({ task: e.title, plannedMin: mins, theme: prefs.theme, sound: prefs.sound, volume: prefs.volume, fromCalendar: true, circle: true });
 }
 
@@ -889,7 +891,8 @@ async function prepareFromEvent(eventId) {
   if (e) {
     // The circle primes you for the time left before the task starts.
     const left = Math.round((e.start - Date.now()) / 60000);
-    const mins = left >= 1 ? Math.min(60, left) : 5;
+    const remaining = Math.round((e.end - Date.now()) / 60000);
+    const mins = left >= 1 ? Math.min(60, left) : Math.max(5, Math.min(240, remaining));
     await patch('prefs', { task: e.title, plannedMin: mins, customMin: mins, fromCalendar: true });
   }
   await openHome('setup');
