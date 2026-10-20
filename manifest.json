@@ -24,6 +24,10 @@
     "service_worker": "background.js",
     "type": "module"
   },
+  "oauth2": {
+    "client_id": "287087142246-3flcdtk6rmm7j67p27uhtl2e1nhgp638.apps.googleusercontent.com",
+    "scopes": ["https://www.googleapis.com/auth/calendar.events.readonly"]
+  },
   "permissions": [
     "storage",
     "alarms",

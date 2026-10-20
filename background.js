@@ -742,7 +742,24 @@ function demoEvent() {
 // chrome.identity.getRedirectURL()). No manifest editing needed.
 const CAL_SCOPE = 'https://www.googleapis.com/auth/calendar.events.readonly';
 
+// Preferred: Chrome's own Google sign-in (manifest "oauth2", a Chrome Extension client).
+// Chrome keeps the token fresh by itself, so the calendar never drops after an hour.
+// Falls back to the web sign-in below when Chrome can't do it (not signed into Chrome, other browsers).
 async function getToken(interactive) {
+  try {
+    const res = await chrome.identity.getAuthToken({ interactive: !!interactive, scopes: [CAL_SCOPE] });
+    const token = typeof res === 'string' ? res : res && res.token;
+    if (token) {
+      await chrome.storage.session.set({ calTokenChrome: token });
+      return token;
+    }
+  } catch (e) {
+    // Fall through to the web flow.
+  }
+  return getWebToken(interactive);
+}
+
+async function getWebToken(interactive) {
   const cached = await chrome.storage.session.get(['calToken', 'calTokenExp']);
   if (cached.calToken && cached.calTokenExp > Date.now() + 60000) return cached.calToken;
   const { settings } = await getAll();
@@ -771,7 +788,9 @@ async function getToken(interactive) {
 }
 
 async function dropToken() {
-  await chrome.storage.session.remove(['calToken', 'calTokenExp']);
+  const { calTokenChrome } = await chrome.storage.session.get('calTokenChrome');
+  if (calTokenChrome) await chrome.identity.removeCachedAuthToken({ token: calTokenChrome }).catch(() => {});
+  await chrome.storage.session.remove(['calToken', 'calTokenExp', 'calTokenChrome']);
 }
 
 async function fetchEvents() {
@@ -956,8 +975,8 @@ async function connectDemo() {
 async function disconnectCalendar() {
   const { calendar } = await getAll();
   if (!calendar.demo) {
-    const { calToken } = await chrome.storage.session.get('calToken');
-    if (calToken) fetch('https://oauth2.googleapis.com/revoke?token=' + calToken, { method: 'POST' }).catch(() => {});
+    const { calToken, calTokenChrome } = await chrome.storage.session.get(['calToken', 'calTokenChrome']);
+    [calToken, calTokenChrome].filter(Boolean).forEach((t) => fetch('https://oauth2.googleapis.com/revoke?token=' + t, { method: 'POST' }).catch(() => {}));
     await dropToken();
   }
   const alarms = await chrome.alarms.getAll();
