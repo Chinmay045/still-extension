@@ -110,6 +110,8 @@ async function showNote(item) {
   $('save').textContent = item ? 'Update' : 'Save';
   $('note').hidden = false;
   $('past-view').hidden = true;
+  $('tools').hidden = false;
+  $('list-foot').hidden = true;
   $('past').setAttribute('aria-pressed', 'false');
   text.focus();
   text.setSelectionRange(text.value.length, text.value.length);
@@ -118,6 +120,8 @@ async function showNote(item) {
 function showList() {
   $('note').hidden = true;
   $('past-view').hidden = false;
+  $('tools').hidden = true;
+  $('list-foot').hidden = false;
   $('past').setAttribute('aria-pressed', 'true');
   $('title').textContent = 'Your notes';
   const first = document.querySelector('#list button');

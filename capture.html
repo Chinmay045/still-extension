@@ -5,52 +5,61 @@
 <title>Still capture</title>
 <link rel="stylesheet" href="css/still.css">
 <style>
+  /* The window is shaped like a modern scroll: two gradient rollers with a sheet
+     stretched between them. The sheet's sides curve inward like old parchment. */
   html, body { height: 100%; overflow: hidden; }
-  body { display: flex; flex-direction: column; background: #FFFFFF; }
-  header {
-    height: 40px; flex: none; display: flex; align-items: center; gap: 6px;
-    padding: 0 6px 0 12px; background: var(--grad); color: #FFFFFF;
+  body { display: flex; flex-direction: column; padding: 10px 12px; background: #F3EFF9; }
+  .roller {
+    position: relative; z-index: 2; flex: none; height: 44px; display: flex; align-items: center; gap: 4px;
+    padding: 0 8px 0 14px; border-radius: 22px; background: var(--grad); color: #FFFFFF;
+    box-shadow: 0 6px 16px rgba(107, 47, 214, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.35), inset 0 -2px 0 rgba(0, 0, 0, 0.12);
   }
+  /* Roller ends, like the handles of a scroll */
+  .roller::before, .roller::after {
+    content: ""; position: absolute; top: 50%; width: 7px; height: 24px; margin-top: -12px;
+    border-radius: 4px; background: #5B21B6; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  }
+  .roller::before { left: -6px; }
+  .roller::after { right: -6px; background: #A12FA8; }
   header img { width: 18px; height: 18px; filter: brightness(0) invert(1); }
   header h1 { flex: 1; font-size: 14px; font-weight: 600; letter-spacing: -0.01em; white-space: nowrap; }
-  .hbtn {
-    height: 28px; min-width: 28px; padding: 0 7px; border: 0; border-radius: 8px;
+  .hbtn, .tool {
+    height: 30px; min-width: 30px; padding: 0 7px; border: 0; border-radius: 999px;
     background: transparent; color: #FFFFFF; font-size: 14px; font-weight: 600;
     display: inline-flex; align-items: center; justify-content: center; gap: 4px;
   }
-  .hbtn:hover, .hbtn[aria-pressed="true"] { background: rgba(255, 255, 255, 0.2); }
-  .hbtn:focus-visible { box-shadow: 0 0 0 2px #FFFFFF !important; }
+  .hbtn:hover, .hbtn[aria-pressed="true"], .tool:hover { background: rgba(255, 255, 255, 0.2); }
+  .hbtn:focus-visible, .tool:focus-visible { box-shadow: 0 0 0 2px #FFFFFF !important; }
   svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex: none; }
-  main { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+
+  .sheet {
+    flex: 1; min-height: 0; display: flex; flex-direction: column; margin: -16px 6px; padding: 18px 0;
+    background: linear-gradient(180deg, #FFFFFF 0%, #FFFDFB 100%);
+    box-shadow: 0 10px 30px rgba(60, 30, 110, 0.10);
+    -webkit-mask: radial-gradient(ellipse 12px 54% at 0 50%, transparent 97%, #000 100%) left / 51% 100% no-repeat,
+                  radial-gradient(ellipse 12px 54% at 100% 50%, transparent 97%, #000 100%) right / 51% 100% no-repeat;
+            mask: radial-gradient(ellipse 12px 54% at 0 50%, transparent 97%, #000 100%) left / 51% 100% no-repeat,
+                  radial-gradient(ellipse 12px 54% at 100% 50%, transparent 97%, #000 100%) right / 51% 100% no-repeat;
+  }
 
   /* Note editor */
-  .stamp { flex: none; padding: 10px 16px 0; font-size: 11.5px; color: var(--g3); text-align: center; }
+  .stamp { flex: none; padding: 6px 24px 0; font-size: 11px; letter-spacing: .02em; color: var(--g3); text-align: center; }
   textarea {
-    flex: 1; width: 100%; border: 0; resize: none; padding: 8px 16px 10px;
-    font-size: 15.5px; line-height: 1.55; color: var(--ink); background: #FFFFFF; tab-size: 4;
+    flex: 1; width: 100%; border: 0; resize: none; padding: 6px 24px 6px;
+    font-size: 15px; line-height: 1.55; color: var(--ink); background: transparent; tab-size: 4;
   }
   textarea::placeholder { color: #A1A1A6; }
   textarea:focus-visible { box-shadow: none !important; }
-  .tools {
-    flex: none; display: flex; align-items: center; gap: 2px;
-    padding: 6px 8px; border-top: 1px solid var(--g1); background: #FBFAFD;
-  }
-  .tool {
-    height: 32px; min-width: 32px; padding: 0 7px; border: 0; border-radius: 8px; background: transparent;
-    color: var(--g4); display: inline-flex; align-items: center; justify-content: center; gap: 5px; font-size: 12px;
-  }
-  .tool:hover { background: var(--lav); color: var(--v3); }
-  .tools .sep { width: 1px; height: 18px; background: var(--g2); margin: 0 4px; }
+  .hint { flex: none; padding: 0 24px 2px; font-size: 10.5px; color: var(--g3); text-align: center; }
+  .tools { flex: 1; display: flex; align-items: center; gap: 2px; margin-left: -6px; }
+  .tools .sep { width: 1px; height: 18px; background: rgba(255, 255, 255, 0.35); margin: 0 4px; }
   .tools .grow { flex: 1; }
-  .save { min-height: 32px; padding: 0 14px; font-size: 13px; }
-  .hint { flex: none; padding: 0 12px 6px; font-size: 10.5px; color: var(--g3); background: #FBFAFD; text-align: right; }
+  .save { min-height: 30px; padding: 0 16px; font-size: 13px; background: #FFFFFF !important; color: var(--v3) !important; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12) !important; }
+  .list-foot { flex: 1; text-align: center; font-size: 12px; font-weight: 500; opacity: .92; }
 
   /* Notes list */
-  .list-head { flex: none; display: flex; align-items: center; justify-content: space-between; padding: 10px 14px 6px; }
-  .list-head b { font-size: 13px; }
-  .list-head span { font-size: 11.5px; color: var(--g3); }
-  #list { flex: 1; min-height: 0; overflow-y: auto; margin: 0; padding: 0 0 8px; list-style: none; }
-  #list li { display: grid; grid-template-columns: auto 1fr auto; align-items: start; gap: 8px; padding: 9px 10px 9px 12px; border-bottom: 1px solid var(--g1); }
+  #list { flex: 1; min-height: 0; overflow-y: auto; margin: 0; padding: 4px 0; list-style: none; }
+  #list li { display: grid; grid-template-columns: auto 1fr auto; align-items: start; gap: 8px; padding: 9px 20px; border-bottom: 1px solid var(--g1); }
   #list li:hover { background: #FBFAFD; }
   .check {
     width: 20px; height: 20px; margin-top: 1px; border-radius: 50%; border: 1.5px solid #C7C7CC; background: #FFFFFF;
@@ -72,10 +81,10 @@
   .act:hover { background: var(--lav); color: var(--v3); }
   .act.del:hover { background: #FDECEC; color: #C4314B; }
   .act[aria-pressed="true"] { color: var(--v4); background: var(--lav); }
-  .divider { padding: 12px 14px 4px !important; display: block !important; border: 0 !important; font-size: 11px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--g3); background: transparent !important; }
-  .empty { padding: 28px 16px; text-align: center; color: var(--g3); font-size: 13px; display: block !important; border: 0 !important; }
+  .divider { padding: 12px 20px 4px !important; display: block !important; border: 0 !important; font-size: 11px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--g3); background: transparent !important; }
+  .empty { padding: 28px 20px; text-align: center; color: var(--g3); font-size: 13px; display: block !important; border: 0 !important; }
   .undo {
-    position: fixed; left: 10px; right: 10px; bottom: 10px; display: flex; align-items: center; justify-content: space-between;
+    position: fixed; z-index: 3; left: 24px; right: 24px; bottom: 64px; display: flex; align-items: center; justify-content: space-between;
     padding: 8px 8px 8px 14px; border-radius: 12px; background: #1D1D1F; color: #FFFFFF; font-size: 13px;
   }
   .undo button { border: 0; background: transparent; color: #E9D5FF; font-weight: 600; font-size: 13px; padding: 4px 8px; border-radius: 6px; }
@@ -84,7 +93,7 @@
 </style>
 </head>
 <body>
-<header>
+<header class="roller">
   <img src="assets/ring.png" alt="">
   <h1 id="title">New note</h1>
   <button class="hbtn" id="new" title="New note" aria-label="New note"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
@@ -92,11 +101,19 @@
   <button class="hbtn" id="close" title="Save and close (Esc)" aria-label="Save and close"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
 </header>
 
-<main id="note">
+<main id="note" class="sheet">
   <div class="stamp" id="stamp"></div>
   <label class="sr-only" for="text">Note</label>
   <textarea id="text" autofocus spellcheck="true" placeholder="What's pulling at you? Jot it down and get back to work."></textarea>
-  <div class="tools" role="toolbar" aria-label="Formatting">
+  <div class="hint">Enter adds a line · Ctrl+Enter saves · Esc saves</div>
+</main>
+
+<main id="past-view" class="sheet" hidden>
+  <ul id="list" aria-label="Your notes"></ul>
+</main>
+
+<footer class="roller">
+  <div class="tools" id="tools" role="toolbar" aria-label="Formatting">
     <button class="tool" data-fmt="check" title="Checklist" aria-label="Checklist"><svg viewBox="0 0 24 24"><circle cx="7" cy="7" r="3"/><path d="M13 7h8M13 17h8"/><circle cx="7" cy="17" r="3"/></svg></button>
     <button class="tool" data-fmt="bullet" title="Bulleted list" aria-label="Bulleted list"><svg viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1" fill="currentColor"/><circle cx="4.5" cy="12" r="1" fill="currentColor"/><circle cx="4.5" cy="18" r="1" fill="currentColor"/></svg></button>
     <button class="tool" data-fmt="num" title="Numbered list" aria-label="Numbered list"><svg viewBox="0 0 24 24"><path d="M10 6h10M10 12h10M10 18h10M4 5l1.5-1v5M3.5 14.5c.3-.9 2.6-1 2.6.4 0 1.1-2.6 2-2.6 3.1h2.8"/></svg></button>
@@ -105,13 +122,8 @@
     <span class="grow"></span>
     <button class="btn btn-primary save" id="save">Save</button>
   </div>
-  <div class="hint">Enter adds a line · Ctrl+Enter saves · Esc saves and closes</div>
-</main>
-
-<main id="past-view" hidden>
-  <div class="list-head"><b>Your notes</b><span>Tick the circle when it's done</span></div>
-  <ul id="list" aria-label="Your notes"></ul>
-</main>
+  <div class="list-foot" id="list-foot" hidden>Tick the circle when it's done</div>
+</footer>
 
 <div class="undo" id="undo" role="status" hidden><span id="undo-text">Deleted.</span><button id="undo-btn">Undo</button></div>
 

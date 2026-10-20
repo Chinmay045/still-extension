@@ -5,8 +5,8 @@
 import { applySession, localOffset } from './js/progress.js';
 import { getAll, patch, kindOf, uid, normalizeDomain, fmtTime, rupees, pledgeArmed, GOOGLE_CLIENT_ID, WALLET_API } from './js/lib.js';
 
-const CAPTURE_W = 380;
-const CAPTURE_H = 480;
+const CAPTURE_W = 360;
+const CAPTURE_H = 400;
 const OVERRIDE_RULE_BASE = 9000;
 const ICON = 'assets/icon-128.png';
 
