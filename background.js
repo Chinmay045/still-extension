@@ -7,6 +7,8 @@ import { getAll, patch, kindOf, uid, normalizeDomain, fmtTime, rupees, pledgeArm
 
 const CAPTURE_W = 360;
 const CAPTURE_H = 400;
+const NUDGE_W = 360;
+const NUDGE_H = 300;
 const OVERRIDE_RULE_BASE = 9000;
 const ICON = 'assets/icon-128.png';
 
@@ -157,7 +159,7 @@ async function startSession(cfg) {
   await patch('prefs', { task: '', fromCalendar: false });
   await audio('audio-play', { sound: session.sound, volume: session.volume });
 
-  if (settings.autoCircle) {
+  if (settings.autoCircle || cfg.circle) {
     const tab = await chrome.tabs.create({ url: 'focus.html' });
     await chrome.storage.session.set({ circleTabId: tab.id });
   } else {
@@ -749,7 +751,11 @@ async function getToken(interactive) {
     include_granted_scopes: 'true'
   });
   if (!interactive) q.set('prompt', 'none');
-  const redirect = await chrome.identity.launchWebAuthFlow({ url: 'https://accounts.google.com/o/oauth2/v2/auth?' + q, interactive: !!interactive });
+  // Silent refresh: let Google's prompt=none page finish its redirect instead of
+  // aborting on first load, which is what made background syncs fail after an hour.
+  const flow = { url: 'https://accounts.google.com/o/oauth2/v2/auth?' + q, interactive: !!interactive };
+  if (!interactive) Object.assign(flow, { abortOnLoadForNonInteractive: false, timeoutMsForNonInteractive: 10000 });
+  const redirect = await chrome.identity.launchWebAuthFlow(flow);
   const params = new URLSearchParams(new URL(redirect).hash.slice(1));
   if (params.get('error')) throw new Error(params.get('error'));
   const token = params.get('access_token');
@@ -786,8 +792,16 @@ async function pollCalendar() {
   let events = [];
   if (calendar.demo) events = [demoEvent()];
   else {
-    try { events = await fetchEvents(); } catch (e) { return; }
+    try {
+      events = await fetchEvents();
+    } catch (e) {
+      // Usually Google needs the user to sign in again. Say so instead of failing quietly.
+      if (!calendar.needsSignIn) await chrome.storage.local.set({ calendar: Object.assign({}, calendar, { needsSignIn: true, syncError: e.message }) });
+      return;
+    }
   }
+  delete calendar.needsSignIn;
+  delete calendar.syncError;
   const now = Date.now();
   const live = events.filter((e) => e.end > now);
   const upcoming = live.filter((e) => e.start > now);
@@ -800,14 +814,19 @@ async function pollCalendar() {
     store[e.id] = e;
     if (e.start > now) chrome.alarms.create('blockstart|' + e.id, { when: e.start });
   }
+  const late = [];
   for (const e of upcoming) {
     const when = e.start - settings.nudgeLeadMin * 60000;
-    if (when > now && done[e.id] !== e.start) chrome.alarms.create('nudge|' + e.id, { when });
+    if (done[e.id] === e.start) continue;
+    if (when > now) chrome.alarms.create('nudge|' + e.id, { when });
+    // Created (or seen) inside the nudge window, e.g. added 3 minutes before it starts.
+    else late.push(e.id);
   }
   calendar.nextEvent = upcoming[0] || null;
   calendar.lastSync = now;
   await chrome.storage.local.set({ calendar, calEvents: store });
   await checkBlockNow();
+  for (const id of late) await fireNudge(id);
 }
 
 async function fireNudge(eventId) {
@@ -816,6 +835,12 @@ async function fireNudge(eventId) {
   if (!e) return;
   const { nudged } = await chrome.storage.local.get('nudged');
   await chrome.storage.local.set({ nudged: Object.assign({}, nudged, { [eventId]: e.start }) });
+  try {
+    await openNudge(eventId);
+    return;
+  } catch (err) {
+    // No Chrome window to sit next to: fall back to a system notification.
+  }
   chrome.notifications.create('nudge|' + eventId, {
     type: 'basic',
     iconUrl: ICON,
@@ -824,6 +849,34 @@ async function fireNudge(eventId) {
     buttons: [{ title: 'Prepare my focus session' }, { title: 'Open Still' }],
     requireInteraction: true
   });
+}
+
+// A small Still window in the corner of the browser, on top, with a Focus now button.
+async function openNudge(eventId) {
+  const { nudgeWindowId } = await chrome.storage.session.get('nudgeWindowId');
+  if (nudgeWindowId != null) await chrome.windows.remove(nudgeWindowId).catch(() => {});
+  const w = await chrome.windows.getLastFocused({ windowTypes: ['normal'] });
+  const opts = { url: 'nudge.html#' + encodeURIComponent(eventId), type: 'popup', width: NUDGE_W, height: NUDGE_H, focused: true };
+  let win;
+  try {
+    win = await chrome.windows.create(Object.assign({
+      left: Math.max(0, (w.left || 0) + (w.width || 1200) - NUDGE_W - 24),
+      top: Math.max(0, (w.top || 0) + 84)
+    }, opts));
+  } catch (e) {
+    win = await chrome.windows.create(opts);
+  }
+  await chrome.storage.session.set({ nudgeWindowId: win.id });
+}
+
+// Focus now: the event becomes the session, as long as the event, and the circle opens.
+async function focusFromEvent(eventId) {
+  const { calEvents } = await chrome.storage.local.get('calEvents');
+  const e = (calEvents || {})[eventId];
+  if (!e) return null;
+  const { prefs } = await getAll();
+  const mins = Math.max(1, Math.min(240, Math.round((e.end - e.start) / 60000)));
+  return startSession({ task: e.title, plannedMin: mins, theme: prefs.theme, sound: prefs.sound, volume: prefs.volume, fromCalendar: true, circle: true });
 }
 
 async function prepareFromEvent(eventId) {
@@ -972,6 +1025,8 @@ const handlers = {
   calDemo: () => connectDemo(),
   calDisconnect: () => disconnectCalendar(),
   calTestNudge: () => testNudge(),
+  nudgeFocus: (m) => focusFromEvent(m.eventId),
+  nudgePrepare: (m) => prepareFromEvent(m.eventId),
   calRefresh: () => pollCalendar(),
   previewStop: () => null
 };

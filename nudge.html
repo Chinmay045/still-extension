@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Still · Coming up</title>
+<link rel="stylesheet" href="css/still.css">
+<style>
+  /* Same scroll shape as the capture window: two rollers with a sheet between them. */
+  html, body { height: 100%; overflow: hidden; }
+  body { display: flex; flex-direction: column; padding: 10px 12px; background: #F3EFF9; }
+  .roller {
+    position: relative; z-index: 2; flex: none; height: 44px; display: flex; align-items: center; gap: 6px;
+    padding: 0 8px 0 14px; border-radius: 22px; background: var(--grad); color: #FFFFFF;
+    box-shadow: 0 6px 16px rgba(107, 47, 214, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.35), inset 0 -2px 0 rgba(0, 0, 0, 0.12);
+  }
+  .roller::before, .roller::after {
+    content: ""; position: absolute; top: 50%; width: 7px; height: 24px; margin-top: -12px;
+    border-radius: 4px; background: #5B21B6; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  }
+  .roller::before { left: -6px; }
+  .roller::after { right: -6px; background: #A12FA8; }
+  header img { width: 18px; height: 18px; filter: brightness(0) invert(1); }
+  header h1 { flex: 1; font-size: 14px; font-weight: 600; letter-spacing: -0.01em; white-space: nowrap; }
+  .hbtn {
+    height: 30px; min-width: 30px; padding: 0 7px; border: 0; border-radius: 999px;
+    background: transparent; color: #FFFFFF; display: inline-flex; align-items: center; justify-content: center;
+  }
+  .hbtn:hover { background: rgba(255, 255, 255, 0.2); }
+  .hbtn:focus-visible { box-shadow: 0 0 0 2px #FFFFFF !important; }
+  svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  .sheet {
+    flex: 1; min-height: 0; display: flex; flex-direction: column; justify-content: center; gap: 6px;
+    margin: -16px 6px; padding: 26px 26px; text-align: center;
+    background: linear-gradient(180deg, #FFFFFF 0%, #FFFDFB 100%);
+    box-shadow: 0 10px 30px rgba(60, 30, 110, 0.10);
+    -webkit-mask: radial-gradient(ellipse 12px 54% at 0 50%, transparent 97%, #000 100%) left / 51% 100% no-repeat,
+                  radial-gradient(ellipse 12px 54% at 100% 50%, transparent 97%, #000 100%) right / 51% 100% no-repeat;
+            mask: radial-gradient(ellipse 12px 54% at 0 50%, transparent 97%, #000 100%) left / 51% 100% no-repeat,
+                  radial-gradient(ellipse 12px 54% at 100% 50%, transparent 97%, #000 100%) right / 51% 100% no-repeat;
+  }
+  .when { font-size: 12px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--v4); }
+  .title { font-family: 'Inter Tight', sans-serif; font-size: 22px; font-weight: 600; letter-spacing: -0.03em; line-height: 1.2; color: var(--ink); overflow-wrap: anywhere; }
+  .meta { font-size: 13px; color: var(--g5); }
+  .acts { flex: 1; display: flex; align-items: center; gap: 6px; margin-left: -6px; }
+  .acts .grow { flex: 1; }
+  .ghost { height: 30px; padding: 0 12px; border: 0; border-radius: 999px; background: transparent; color: #FFFFFF; font-size: 12.5px; font-weight: 600; }
+  .ghost:hover { background: rgba(255, 255, 255, 0.2); }
+  .go { min-height: 30px; padding: 0 16px; font-size: 13px; background: #FFFFFF !important; color: var(--v3) !important; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12) !important; }
+</style>
+</head>
+<body>
+<header class="roller">
+  <img src="assets/ring.png" alt="">
+  <h1>Coming up</h1>
+  <button class="hbtn" id="close" title="Not now" aria-label="Not now"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+</header>
+<main class="sheet" role="status">
+  <span class="when" id="when"></span>
+  <span class="title" id="title"></span>
+  <span class="meta" id="meta"></span>
+</main>
+<footer class="roller">
+  <div class="acts">
+    <button class="ghost" id="setup" title="Open Setup with this task filled in">Set up first</button>
+    <span class="grow"></span>
+    <button class="btn btn-primary go" id="focus">Focus now</button>
+  </div>
+</footer>
+<script type="module" src="js/nudge.js"></script>
+</body>
+</html>

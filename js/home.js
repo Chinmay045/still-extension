@@ -65,6 +65,8 @@ function renderNav() {
   btn.classList.remove('synced', 'upcoming');
   if (!cal.connected) {
     $('cal-label').textContent = 'Connect Calendar';
+  } else if (cal.needsSignIn) {
+    $('cal-label').textContent = 'Reconnect Calendar';
   } else if (cal.nextEvent && cal.nextEvent.start > Date.now()) {
     btn.classList.add('upcoming');
     $('cal-label').textContent = 'Upcoming task: ' + fmtTime(cal.nextEvent.start);
@@ -77,7 +79,7 @@ function renderNav() {
 
 $('cal-btn').addEventListener('click', async () => {
   const cal = state.calendar;
-  if (cal.connected && cal.nextEvent && cal.nextEvent.start > Date.now()) {
+  if (cal.connected && !cal.needsSignIn && cal.nextEvent && cal.nextEvent.start > Date.now()) {
     const e = cal.nextEvent;
     const mins = Math.max(1, Math.min(240, Math.round((e.end - e.start) / 60000)));
     state.prefs = await patch('prefs', { task: e.title, plannedMin: mins, customMin: mins, fromCalendar: true });
@@ -518,7 +520,10 @@ function renderSettings() {
   document.querySelectorAll('[data-toggle]').forEach((b) => b.setAttribute('aria-checked', String(!!settings[b.dataset.toggle])));
 
   const act = $('cal-actions');
-  if (calendar.connected) {
+  if (calendar.connected && calendar.needsSignIn) {
+    $('cal-state').textContent = 'Google needs you to sign in again before Still can see new events. Nudges are paused until then.';
+    act.innerHTML = '<button class="btn btn-sm btn-google" data-cal="connect"><span class="g-mark" aria-hidden="true">G</span>Reconnect</button><button class="btn btn-sm btn-ghost" data-cal="disconnect">Disconnect</button>';
+  } else if (calendar.connected) {
     const next = calendar.nextEvent && calendar.nextEvent.start > Date.now() ? calendar.nextEvent : null;
     $('cal-state').textContent = (calendar.demo ? 'Demo calendar connected. ' : 'Connected, read-only. ') +
       (next ? 'Next: ' + next.title + ' at ' + fmtTime(next.start) + '.' : 'Nothing coming up.');
@@ -622,7 +627,7 @@ $('cal-actions').addEventListener('click', async (e) => {
   if (res && res.ok === false) {
     showCalError(res.error);
   } else if (kind === 'test') {
-    toast('Nudge sent. Check your notifications.');
+    toast('A nudge window just opened in the corner.');
   }
 });
 async function openCalSetup() {
