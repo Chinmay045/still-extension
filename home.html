@@ -14,7 +14,6 @@
 <nav class="nav" aria-label="Main">
   <a href="#home" class="brand" aria-label="About Still" title="About Still"><img src="assets/logo.png" alt="Still"></a>
   <div class="nav-links">
-    <a href="#dashboard" data-nav="dashboard">Dashboard</a>
     <a href="#setup" data-nav="setup">Setup</a>
     <a href="#bucket" data-nav="bucket">Bucket <span class="badge" id="nav-badge" hidden></span></a>
     <a href="#insights" data-nav="insights">Insights</a>
@@ -103,19 +102,9 @@
     <div class="cta">
       <img src="assets/logo.png" alt="Still" class="cta-logo">
       <p class="cta-line">Your next hour, back to you.</p>
-      <a class="btn btn-primary" href="#dashboard">Open your dashboard</a>
+      <a class="btn btn-primary" href="#setup">Set up your focus</a>
     </div>
   </div>
-</section>
-
-<!-- DASHBOARD -->
-<section class="view page" id="view-dashboard" hidden>
-  <header class="page-head">
-    <h1 id="dash-hello">Hello.</h1>
-    <p class="muted" id="dash-date"></p>
-  </header>
-  <div id="dash"></div>
-  <a class="dash-tour" href="#home">What is <span class="still-word">Still</span>? Take the tour</a>
 </section>
 
 <!-- SETUP -->
@@ -263,7 +252,8 @@
     </div>
     <span class="label" id="pledge-label">Pledge per calendar task</span>
     <div class="seg" role="radiogroup" aria-labelledby="pledge-label" id="pledge-seg"></div>
-    <span class="muted small">Change it for a single task on the Dashboard.</span>
+    <span class="muted small">Change it for a single task in the list below.</span>
+    <div class="card dash-list" id="wallet-rows" hidden></div>
     <span class="label" id="charity-label">Broken pledges go to</span>
     <div class="seg" role="radiogroup" aria-labelledby="charity-label" id="charity-seg"></div>
     <span class="muted small">Recorded for now. Payouts to the charity come later.</span>

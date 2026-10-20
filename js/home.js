@@ -5,7 +5,7 @@ import { mountSession } from './session-ui.js';
 import { SoundEngine } from './audio.js';
 
 const $ = (id) => document.getElementById(id);
-const VIEWS = ['dashboard', 'home', 'setup', 'bucket', 'insights', 'settings', 'summary'];
+const VIEWS = ['home', 'setup', 'bucket', 'insights', 'settings', 'summary'];
 let state = await getAll();
 let reviewed = 0;
 
@@ -19,7 +19,7 @@ function route() {
     else a.removeAttribute('aria-current');
   });
   document.title = name === 'home' ? 'Still' : 'Still · ' + name[0].toUpperCase() + name.slice(1);
-  // The tour shows on first open; every open after that lands on the dashboard.
+  // The tour shows on first open; every open after that lands on Setup.
   if (name === 'home' && !state.seenWelcome) chrome.storage.local.set({ seenWelcome: true });
   if (name !== 'setup') stopPreview();
   if (name === 'bucket') reviewed = 0;
@@ -30,8 +30,7 @@ function route() {
 
 function renderView(name) {
   const w = state.wallet;
-  if ((name === 'dashboard' || name === 'settings') && w.signedIn && !(Date.now() - (w.lastSync || 0) < 60000)) send('walletRefresh');
-  if (name === 'dashboard') renderDashboard();
+  if (name === 'settings' && w.signedIn && !(Date.now() - (w.lastSync || 0) < 60000)) send('walletRefresh');
   if (name === 'home') renderHome();
   if (name === 'setup') renderSetup();
   if (name === 'bucket') renderBucket();
@@ -43,7 +42,7 @@ function renderView(name) {
 function current() {
   const h = location.hash.slice(1);
   if (VIEWS.includes(h)) return h;
-  return state.seenWelcome ? 'dashboard' : 'home';
+  return state.seenWelcome ? 'setup' : 'home';
 }
 
 function toast(text) {
@@ -127,14 +126,7 @@ $('to-compare').addEventListener('click', () => {
 });
 $('vs-range').addEventListener('input', (e) => { $('vs').style.setProperty('--split', e.target.value + '%'); });
 
-// ---------- dashboard ----------
-
-const DAY = 86400000;
-
-function minutesLabel(m) {
-  if (m < 60) return m + ' min';
-  return Math.floor(m / 60) + ' h' + (m % 60 ? ' ' + (m % 60) + ' min' : '');
-}
+// ---------- wallet rows ----------
 
 function row(title, sub, right) {
   return `<div class="dash-row"><div class="dash-text"><b>${title}</b>${sub ? `<span class="muted small">${sub}</span>` : ''}</div>${right || ''}</div>`;
@@ -142,67 +134,6 @@ function row(title, sub, right) {
 
 function group(title, rows) {
   return `<section class="dash-group"><h2 class="h2">${title}</h2><div class="card dash-list">${rows}</div></section>`;
-}
-
-function renderDashboard() {
-  const { session, history, parked, calendar, settings } = state;
-  const now = new Date();
-  const hour = now.getHours();
-  $('dash-hello').textContent = hour < 12 ? 'Good morning.' : hour < 17 ? 'Good afternoon.' : 'Good evening.';
-  $('dash-date').textContent = now.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' }) + '. Everything you control in Still, in one place.';
-
-  const startToday = new Date(now.toDateString()).getTime();
-  const weekAgo = Date.now() - 7 * DAY;
-  const today = history.filter((s) => s.endedAt >= startToday);
-  const week = history.filter((s) => s.endedAt >= weekAgo);
-  const sum = (list, k) => list.reduce((n, s) => n + (Number(s[k]) || 0), 0);
-  const fresh = parked.filter((p) => p.status === 'new').sort((a, b) => b.createdAt - a.createdAt);
-
-  const nowRows = session
-    ? row('Focusing on ' + esc(session.task), session.phase === 'working' ? 'Ends at ' + fmtTime(session.endsAt) : 'Waiting in the focus circle', '<a class="btn btn-sm" href="#setup">Open session</a>')
-    : row('No session running', 'Name one task and pick how long.', '<a class="btn btn-sm btn-primary" href="#setup">Set up a session</a>');
-
-  const pr = progressNow();
-  const focusRows =
-    row(streakLabel(pr.currentStreak), esc(encouragement(pr)), `<a class="btn btn-sm" href="#insights">Insights</a>`) +
-    row('Points today', pr.totalPoints + ' points all time', `<span class="dash-val">${pr.todayPoints}</span>`) +
-    row('Focus time today', today.length + (today.length === 1 ? ' session' : ' sessions'), `<span class="dash-val">${minutesLabel(sum(today, 'minutesFocused'))}</span>`) +
-    row('This week', week.length + (week.length === 1 ? ' session' : ' sessions') + ' in the last 7 days', `<span class="dash-val">${minutesLabel(sum(week, 'minutesFocused'))}</span>`) +
-    row('Distractions stopped this week', 'Times a blocked site tried to pull you away', `<span class="dash-val">${sum(week, 'impulses')}</span>`) +
-    row('Thoughts parked this week', 'Saved to the bucket instead of switching tabs', `<span class="dash-val">${sum(week, 'parkedCount')}</span>`);
-
-  const bucketRows =
-    row(fresh.length ? fresh.length + (fresh.length === 1 ? ' thought waiting' : ' thoughts waiting') : 'Bucket is empty', fresh.length ? 'Review them in about a minute.' : 'Press Alt+P anytime to park a thought.', fresh.length ? '<a class="btn btn-sm" href="#bucket">Review bucket</a>' : '') +
-    fresh.slice(0, 3).map((p) => row(esc(p.text), fmtWhen(p.createdAt), `<span class="kind kind-${p.kind}">${KINDS[p.kind].label}</span>`)).join('');
-
-  const next = calendar.connected && calendar.nextEvent && calendar.nextEvent.start > Date.now() ? calendar.nextEvent : null;
-  const accountRows = calendar.connected
-    ? row(calendar.demo ? 'Demo calendar connected' : 'Google Calendar connected', 'Read-only. Nudges you before events and blocks sites while they run.', '<button class="btn btn-sm btn-ghost" type="button" data-dash="disconnect">Disconnect</button>') +
-      row('Next event', next ? esc(next.title) + ' at ' + fmtTime(next.start) : 'Nothing coming up', '') +
-      row('Nudge timing', settings.nudgeLeadMin + ' minutes before each event', '<a class="btn btn-sm" href="#settings">Change</a>')
-    : row('Google Calendar not connected', 'Connect to get a nudge before meetings. Read-only.', '<button class="btn btn-sm btn-google" type="button" data-dash="connect"><span class="g-mark" aria-hidden="true">G</span>Sign in with Google</button>');
-
-  const sites = settings.sites || [];
-  const blockRows =
-    (state.block ? row('Blocking now', esc(state.block.title) + ' runs until ' + fmtTime(state.block.end) + (pledgeArmed(state.block) ? ' · ' + rupees(state.block.pledge * 100) + ' on the line' : ''), stopButton('btn-ghost')) : '') +
-    row(sites.length + (sites.length === 1 ? ' site blocked' : ' sites blocked') + ' during calendar tasks', sites.length ? sites.map(esc).join(', ') : 'Add the sites that pull you away most.', '<a class="btn btn-sm" href="#settings">Edit</a>') +
-    row('"Open anyway" wait', settings.overrideWait + ' seconds before a blocked site opens once', '');
-
-  const walletRows = renderWalletRows();
-
-  const recent = history.slice(-5).reverse();
-  const recentRows = recent.length
-    ? recent.map((s) => row(esc(s.task || 'Focus session'), fmtWhen(s.endedAt), `<span class="dash-val">${minutesLabel(s.minutesFocused)}</span>`)).join('')
-    : row('No sessions yet', 'Your sessions show up here after they end.', '');
-
-  $('dash').innerHTML =
-    group('Right now', nowRows) +
-    group('Your focus', focusRows) +
-    group('Bucket', bucketRows) +
-    group('Google account', accountRows) +
-    group('Blocking', blockRows) +
-    group('Focus wallet', walletRows) +
-    group('Recent sessions', recentRows);
 }
 
 function walletReady() {
@@ -214,26 +145,21 @@ function pledgeSelect(eventId, value) {
   return `<select class="pledge-pick" data-pledge-event="${esc(eventId)}" aria-label="Pledge for this task">${opts}</select>`;
 }
 
+// Per-task pledges, money owed and broken pledges, shown under Focus wallet in Settings.
+// Balance, Add money and sign-in already live in the row above it.
 function renderWalletRows() {
   const { wallet, settings, pledges, block } = state;
-  if (!walletReady()) {
-    return row('Put money on your tasks', 'Pledge a small amount on each calendar task. Needs the wallet server set up once.', '<a class="btn btn-sm" href="#settings" data-goto="wallet">Set up</a>');
-  }
-  if (!wallet.signedIn) {
-    return row('Put money on your tasks', 'Sign in to your prepaid wallet, add money, and pledge it on each calendar task.', '<button class="btn btn-sm btn-google" type="button" data-wallet="signin"><span class="g-mark" aria-hidden="true">G</span>Sign in with Google</button>');
-  }
+  if (!walletReady() || !wallet.signedIn) return '';
   const now = Date.now();
   const { calEvents } = state;
   const upcoming = Object.values(calEvents || {}).filter((e) => e.end > now && !(block && block.eventId === e.id)).sort((a, b) => a.start - b.start).slice(0, 4);
   const pick = (e) => (e.id in pledges ? Number(pledges[e.id]) : Number(settings.pledge));
   const forfeits = (wallet.txns || []).filter((t) => t.kind === 'forfeit').slice(0, 3);
-  return row('Balance', wallet.email ? 'Signed in as ' + esc(wallet.email) : 'Prepaid, test mode', `<span class="dash-val">${rupees(wallet.balancePaise)}</span>`) +
-    row('Add money', 'UPI or card through Razorpay, on the wallet page.', '<button class="btn btn-sm" type="button" data-wallet="open">Add money</button>') +
-    (wallet.owedPaise > 0 ? row('Owed to charity: ' + rupees(wallet.owedPaise), 'From tasks you broke. Pay it from your UPI app once a month.', '<button class="btn btn-sm btn-primary" type="button" data-wallet="pay">Pay now</button>') : '') +
+  return (wallet.owedPaise > 0 ? row('Owed to charity: ' + rupees(wallet.owedPaise), 'From tasks you broke. Pay it from your UPI app once a month.', '<button class="btn btn-sm btn-primary" type="button" data-wallet="pay">Pay now</button>') : '') +
     (block ? row(esc(block.title) + ' (now)', pledgeArmed(block) ? rupees(block.pledge * 100) + ' on the line until ' + fmtTime(block.end) : block.forfeited ? 'Broken. ' + rupees(block.pledge * 100) + ' set aside for ' + esc(block.charity) : 'No pledge on this task', '') : '') +
     (upcoming.length
       ? upcoming.map((e) => row(esc(e.title), fmtWhen(e.start) + ' to ' + fmtTime(e.end), pledgeSelect(e.id, pick(e)))).join('')
-      : row('No calendar tasks coming up', 'New tasks get ' + (settings.pledge ? rupees(settings.pledge * 100) : 'no pledge') + ' unless you change it here.', '<a class="btn btn-sm" href="#settings" data-goto="wallet">Default</a>')) +
+      : row('No calendar tasks coming up', 'New tasks get ' + (settings.pledge ? rupees(settings.pledge * 100) : 'no pledge') + ' unless you change it here.', '')) +
     forfeits.map((t) => row('Broke ' + esc(t.task_title || 'a task'), fmtWhen(Date.parse(t.created_at)) + ' · ' + esc(t.charity || ''), `<span class="dash-val minus">−${rupees(t.amount_paise)}</span>`)).join('');
 }
 
@@ -285,18 +211,6 @@ document.addEventListener('change', async (e) => {
   const pledges = Object.assign({}, state.pledges, { [sel.dataset.pledgeEvent]: Number(sel.value) });
   await chrome.storage.local.set({ pledges });
   toast(Number(sel.value) ? rupees(sel.value * 100) + ' pledged on this task.' : 'No pledge on this task.');
-});
-
-$('dash').addEventListener('click', async (e) => {
-  const b = e.target.closest('[data-dash]');
-  if (!b) return;
-  b.disabled = true;
-  const res = await send({ connect: 'calConnect' }[b.dataset.dash] || 'calDisconnect');
-  b.disabled = false;
-  if (res && res.ok === false) {
-    toast('Could not connect. Opening Settings to try again.');
-    location.hash = 'settings';
-  }
 });
 
 // ---------- setup ----------
@@ -586,6 +500,9 @@ function setRadio(selector, attr, value) {
 
 function renderSettings() {
   const { settings, calendar } = state;
+  const pledgeRows = renderWalletRows();
+  $('wallet-rows').innerHTML = pledgeRows;
+  $('wallet-rows').hidden = !pledgeRows;
   renderChips($('set-sites'), settings.sites);
   setRadio('[data-ow]', 'ow', settings.overrideWait);
   const blk = state.block;
@@ -809,7 +726,6 @@ function renderSummary() {
       ${s.blocked.length ? `<div class="sum-sites">${s.blocked.map(esc).join(' · ')}</div>` : ''}
       <div class="sum-actions">
         <a class="btn btn-primary" href="#setup">Start another</a>
-        <a class="btn" href="#dashboard">Back to dashboard</a>
         ${s.parkedCount ? '<a class="btn btn-ghost" href="#bucket">Review bucket</a>' : ''}
       </div>
     </div>`;
@@ -886,11 +802,9 @@ chrome.storage.onChanged.addListener(async (changes, area) => {
     }
   }
   if (changes.parked && v === 'bucket') renderBucket();
-  if (v === 'dashboard' && (changes.session || changes.parked || changes.calendar || changes.calEvents || changes.settings || changes.history || changes.block || changes.wallet || changes.pledges)) renderDashboard();
-  if ((changes.calendar || changes.settings || changes.block || changes.wallet) && v === 'settings') renderSettings();
+  if ((changes.calendar || changes.settings || changes.block || changes.wallet || changes.calEvents || changes.pledges) && v === 'settings') renderSettings();
   if ((changes.lastSummary || changes.progress) && v === 'summary') renderSummary();
   if (changes.progress && v === 'insights') renderInsights();
-  if (changes.progress && v === 'dashboard') renderDashboard();
   if (changes.prefs && v === 'setup' && !state.session) renderSetup();
 });
 

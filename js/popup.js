@@ -32,7 +32,7 @@ async function start() {
 $('start').addEventListener('click', start);
 $('task').addEventListener('keydown', (e) => { if (e.key === 'Enter') start(); });
 $('to-bucket').addEventListener('click', () => { send('openHome', { hash: 'bucket' }); window.close(); });
-$('to-home').addEventListener('click', () => { send('openHome', { hash: '' }); window.close(); });
+$('to-home').addEventListener('click', () => { send('openHome', { hash: 'setup' }); window.close(); });
 $('to-capture').addEventListener('click', async () => { await send('openCapture'); window.close(); });
 
 chrome.storage.onChanged.addListener((c) => { if (c.session || c.parked) render(); });

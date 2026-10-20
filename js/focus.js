@@ -57,7 +57,7 @@ async function exit() {
   if (leaving) return;
   leaving = true;
   const res = await send('exitCircle');
-  if (!res) reconnect('dashboard');
+  if (!res) reconnect('setup');
 }
 
 document.querySelector('.dock').addEventListener('click', async (e) => {

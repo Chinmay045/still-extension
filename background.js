@@ -658,7 +658,7 @@ async function walletOpen(hash) {
   return { ok: true };
 }
 
-// Decides a new task's pledge: its own amount if set on the Dashboard, else the default.
+// Decides a new task's pledge: its own amount if set in Settings, else the default.
 // Only armed when the wallet can cover it, so a pledge is never an empty threat.
 async function pledgeFor(e, settings) {
   const { wallet, pledges } = await getAll();
@@ -821,7 +821,7 @@ async function fireNudge(eventId) {
     iconUrl: ICON,
     title: e.title + ' starts at ' + fmtTime(e.start),
     message: 'Get ready for it. Still can set up a focus session with this task.',
-    buttons: [{ title: 'Prepare my focus session' }, { title: 'Open dashboard' }],
+    buttons: [{ title: 'Prepare my focus session' }, { title: 'Open Still' }],
     requireInteraction: true
   });
 }
