@@ -526,7 +526,7 @@ function renderSettings() {
   } else if (calendar.connected) {
     const next = calendar.nextEvent && calendar.nextEvent.start > Date.now() ? calendar.nextEvent : null;
     $('cal-state').textContent = (calendar.demo ? 'Demo calendar connected. ' : 'Connected, read-only. ') +
-      (next ? 'Next: ' + next.title + ' at ' + fmtTime(next.start) + '.' : 'Nothing coming up.');
+      (next ? 'Next: ' + next.title + ' at ' + fmtTime(next.start) + '. The Still window opens at ' + fmtTime(Math.max(Date.now(), next.start - settings.nudgeLeadMin * 60000)) + '.' : 'Nothing coming up.');
     act.innerHTML = '<button class="btn btn-sm" data-cal="test">Send a test nudge</button><button class="btn btn-sm btn-ghost" data-cal="disconnect">Disconnect</button>';
   } else {
     $('cal-state').textContent = 'Not connected. Read-only access, used for nudges and to block sites while a task runs.';
@@ -594,6 +594,7 @@ $('lead-seg').addEventListener('click', async (e) => {
   const b = e.target.closest('[data-lead]');
   if (!b) return;
   state.settings = await patch('settings', { nudgeLeadMin: Number(b.dataset.lead) });
+  send('calRefresh');
   renderSettings();
   send('calRefresh');
 });

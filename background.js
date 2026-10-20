@@ -37,7 +37,7 @@ async function syncAfterWake() {
   } else if (block) await endBlock();
   else await clearBlocking();
   if (session && session.phase === 'working' && session.endsAt <= Date.now()) await endSession('timeup');
-  if (calendar.connected) chrome.alarms.create('cal-poll', { delayInMinutes: 0.1, periodInMinutes: 5 });
+  if (calendar.connected) chrome.alarms.create('cal-poll', { delayInMinutes: 0.1, periodInMinutes: 1 });
   await updateBadge();
 }
 
@@ -832,12 +832,14 @@ async function pollCalendar() {
   for (const id of late) await fireNudge(id);
 }
 
-async function fireNudge(eventId) {
+async function fireNudge(eventId, test) {
   const { calEvents } = await chrome.storage.local.get('calEvents');
   const e = (calEvents || {})[eventId];
   if (!e) return;
-  const { nudgeShown } = await chrome.storage.local.get('nudgeShown');
-  await chrome.storage.local.set({ nudgeShown: Object.assign({}, nudgeShown, { [eventId]: e.start }) });
+  if (!test) {
+    const { nudgeShown } = await chrome.storage.local.get('nudgeShown');
+    await chrome.storage.local.set({ nudgeShown: Object.assign({}, nudgeShown, { [eventId]: e.start }) });
+  }
   try {
     await openNudge(eventId);
     return;
@@ -924,7 +926,7 @@ async function connectCalendar(clientId) {
   }
   await chrome.storage.local.set({ calendar: { connected: true, demo: false, nextEvent: null } });
   await patch('settings', { calendarConnected: true });
-  chrome.alarms.create('cal-poll', { delayInMinutes: 5, periodInMinutes: 5 });
+  chrome.alarms.create('cal-poll', { delayInMinutes: 1, periodInMinutes: 1 });
   await pollCalendar();
   return { ok: true };
 }
@@ -932,7 +934,7 @@ async function connectCalendar(clientId) {
 async function connectDemo() {
   await chrome.storage.local.set({ calendar: { connected: true, demo: true, nextEvent: null } });
   await patch('settings', { calendarConnected: true });
-  chrome.alarms.create('cal-poll', { delayInMinutes: 5, periodInMinutes: 5 });
+  chrome.alarms.create('cal-poll', { delayInMinutes: 1, periodInMinutes: 1 });
   await pollCalendar();
   return { ok: true };
 }
@@ -960,7 +962,8 @@ async function testNudge() {
   }
   const { calEvents } = await chrome.storage.local.get('calEvents');
   await chrome.storage.local.set({ calEvents: Object.assign({}, calEvents, { [e.id]: e }) });
-  await fireNudge(e.id);
+  // A test doesn't count: the real nudge still opens at its time.
+  await fireNudge(e.id, true);
   return { ok: true };
 }
 
