@@ -806,8 +806,10 @@ async function pollCalendar() {
   const live = events.filter((e) => e.end > now);
   const upcoming = live.filter((e) => e.start > now);
   const store = {};
-  const { nudged } = await chrome.storage.local.get('nudged');
-  const done = nudged || {};
+  // nudgeShown replaced the old `nudged` key: old notification-only nudges were often hidden
+  // by Windows, so they must not stop the new window from opening.
+  const { nudgeShown } = await chrome.storage.local.get('nudgeShown');
+  const done = nudgeShown || {};
   const alarms = await chrome.alarms.getAll();
   alarms.filter((a) => a.name.startsWith('blockstart|')).forEach((a) => chrome.alarms.clear(a.name));
   for (const e of live) {
@@ -833,8 +835,8 @@ async function fireNudge(eventId) {
   const { calEvents } = await chrome.storage.local.get('calEvents');
   const e = (calEvents || {})[eventId];
   if (!e) return;
-  const { nudged } = await chrome.storage.local.get('nudged');
-  await chrome.storage.local.set({ nudged: Object.assign({}, nudged, { [eventId]: e.start }) });
+  const { nudgeShown } = await chrome.storage.local.get('nudgeShown');
+  await chrome.storage.local.set({ nudgeShown: Object.assign({}, nudgeShown, { [eventId]: e.start }) });
   try {
     await openNudge(eventId);
     return;
@@ -867,6 +869,8 @@ async function openNudge(eventId) {
     win = await chrome.windows.create(opts);
   }
   await chrome.storage.session.set({ nudgeWindowId: win.id });
+  // If another app is in front, flash Chrome in the taskbar so the nudge isn't missed.
+  chrome.windows.update(win.id, { focused: true, drawAttention: true }).catch(() => {});
 }
 
 // Focus now: the event becomes the session, as long as the event, and the circle opens.
