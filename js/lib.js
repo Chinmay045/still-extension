@@ -22,6 +22,7 @@ export const DEFAULT_SETTINGS = {
   nightDim: true,
   calendarConnected: false,
   nudgeLeadMin: 10,
+  nudgeSound: true,
   calendarBlock: true,
   googleClientId: '',
   walletApi: '',

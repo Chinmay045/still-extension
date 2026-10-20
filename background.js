@@ -868,6 +868,11 @@ async function fireNudge(eventId, test) {
   // its own window in front of other apps (Windows blocks that), but the notification shows
   // over whatever app is open, and its Focus now button works from there.
   try { await openNudge(eventId); } catch (err) { /* no Chrome window open: the notification still shows */ }
+  const { settings, session } = await getAll();
+  if (settings.nudgeSound !== false) {
+    await audio('audio-nudge');
+    if (!session) closeOffscreenLater(5000);
+  }
   const started = Date.now() >= e.start;
   chrome.notifications.create('nudge|' + eventId, {
     type: 'basic',
@@ -876,7 +881,8 @@ async function fireNudge(eventId, test) {
     message: (started ? 'Started at ' : 'Starts at ') + fmtTime(e.start) + '. Focus now opens the circle.',
     buttons: [{ title: 'Focus now' }, { title: 'Set up first' }],
     requireInteraction: true,
-    priority: 2
+    priority: 2,
+    silent: true
   });
 }
 

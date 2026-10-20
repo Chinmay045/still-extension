@@ -12,6 +12,10 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
     engine.stop();
   } else if (msg.type === 'audio-volume') {
     engine.setVolume(msg.volume);
+  } else if (msg.type === 'audio-nudge') {
+    // Keep a running session's volume; otherwise play at a clear default.
+    if (!engine.current) engine.setVolume(70);
+    engine.nudgeChime();
   } else if (msg.type === 'audio-chime') {
     engine.setVolume(msg.volume == null ? engine.volume : msg.volume);
     engine.chime();

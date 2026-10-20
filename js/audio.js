@@ -178,6 +178,20 @@ export class SoundEngine {
     }
   }
 
+  // Two rising notes when a calendar nudge appears: noticeable, but not an alarm.
+  nudgeChime() {
+    const ctx = this.ensure();
+    [[783.99, 0], [1174.66, 0.18]].forEach(([f, d]) => {
+      const t = ctx.currentTime + d;
+      const o = ctx.createOscillator(); o.type = 'sine'; o.frequency.value = f;
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(0.55, t + 0.015);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 1.2);
+      o.connect(g); g.connect(this.master); o.start(t); o.stop(t + 1.3);
+    });
+  }
+
   // Soft three-note chime for the end of a session.
   chime() {
     const ctx = this.ensure();
