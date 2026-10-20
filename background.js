@@ -387,8 +387,13 @@ async function openCapture(mode) {
 }
 
 chrome.windows.onRemoved.addListener(async (windowId) => {
-  const { captureWindowId } = await chrome.storage.session.get('captureWindowId');
+  const { captureWindowId, nudgeWindowId, nudgeEventId } = await chrome.storage.session.get(['captureWindowId', 'nudgeWindowId', 'nudgeEventId']);
   if (captureWindowId === windowId) await chrome.storage.session.remove('captureWindowId');
+  // Dealing with the nudge in either place closes the other one.
+  if (nudgeWindowId === windowId) {
+    await chrome.storage.session.remove(['nudgeWindowId', 'nudgeEventId']);
+    if (nudgeEventId) chrome.notifications.clear('nudge|' + nudgeEventId);
+  }
 });
 
 chrome.commands.onCommand.addListener((command) => {
@@ -840,20 +845,26 @@ async function fireNudge(eventId, test) {
     const { nudgeShown } = await chrome.storage.local.get('nudgeShown');
     await chrome.storage.local.set({ nudgeShown: Object.assign({}, nudgeShown, { [eventId]: e.start }) });
   }
-  try {
-    await openNudge(eventId);
-    return;
-  } catch (err) {
-    // No Chrome window to sit next to: fall back to a system notification.
-  }
+  // Two layers: the Still window inside Chrome, and a system notification. Chrome can't put
+  // its own window in front of other apps (Windows blocks that), but the notification shows
+  // over whatever app is open, and its Focus now button works from there.
+  try { await openNudge(eventId); } catch (err) { /* no Chrome window open: the notification still shows */ }
+  const started = Date.now() >= e.start;
   chrome.notifications.create('nudge|' + eventId, {
     type: 'basic',
     iconUrl: ICON,
-    title: e.title + ' starts at ' + fmtTime(e.start),
-    message: 'Get ready for it. Still can set up a focus session with this task.',
-    buttons: [{ title: 'Prepare my focus session' }, { title: 'Open Still' }],
-    requireInteraction: true
+    title: (started ? 'Happening now: ' : 'Coming up: ') + e.title,
+    message: (started ? 'Started at ' : 'Starts at ') + fmtTime(e.start) + '. Focus now opens the circle.',
+    buttons: [{ title: 'Focus now' }, { title: 'Set up first' }],
+    requireInteraction: true,
+    priority: 2
   });
+}
+
+async function closeNudge(eventId) {
+  chrome.notifications.clear('nudge|' + eventId);
+  const { nudgeWindowId } = await chrome.storage.session.get('nudgeWindowId');
+  if (nudgeWindowId != null) await chrome.windows.remove(nudgeWindowId).catch(() => {});
 }
 
 // A small Still window in the corner of the browser, on top, with a Focus now button.
@@ -871,7 +882,7 @@ async function openNudge(eventId) {
   } catch (e) {
     win = await chrome.windows.create(opts);
   }
-  await chrome.storage.session.set({ nudgeWindowId: win.id });
+  await chrome.storage.session.set({ nudgeWindowId: win.id, nudgeEventId: eventId });
   // If another app is in front, flash Chrome in the taskbar so the nudge isn't missed.
   chrome.windows.update(win.id, { focused: true, drawAttention: true }).catch(() => {});
 }
@@ -902,15 +913,18 @@ async function prepareFromEvent(eventId) {
 
 chrome.notifications.onButtonClicked.addListener(async (id, idx) => {
   if (!id.startsWith('nudge|')) return;
-  chrome.notifications.clear(id);
-  if (idx === 0) await prepareFromEvent(id.slice(6));
-  else await openHome('');
+  const eventId = id.slice(6);
+  await closeNudge(eventId);
+  if (idx === 0) await focusFromEvent(eventId);
+  else await prepareFromEvent(eventId);
 });
 
+// Clicking the notification body brings the Still window (or Setup) to the front.
 chrome.notifications.onClicked.addListener(async (id) => {
   if (!id.startsWith('nudge|')) return;
   chrome.notifications.clear(id);
-  await openHome('');
+  const { nudgeWindowId } = await chrome.storage.session.get('nudgeWindowId');
+  try { await chrome.windows.update(nudgeWindowId, { focused: true }); } catch (e) { await prepareFromEvent(id.slice(6)); }
 });
 
 async function connectCalendar(clientId) {
