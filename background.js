@@ -5,7 +5,8 @@
 import { applySession, localOffset } from './js/progress.js';
 import { getAll, patch, kindOf, uid, normalizeDomain, fmtTime, rupees, pledgeArmed, GOOGLE_CLIENT_ID, WALLET_API } from './js/lib.js';
 
-const CAPTURE_SIZE = 288;
+const CAPTURE_W = 380;
+const CAPTURE_H = 480;
 const OVERRIDE_RULE_BASE = 9000;
 const ICON = 'assets/icon-128.png';
 
@@ -369,10 +370,10 @@ async function openCapture(mode) {
   let left, top;
   try {
     const w = await chrome.windows.getLastFocused({ windowTypes: ['normal'] });
-    left = Math.max(0, (w.left || 0) + (w.width || 1200) - CAPTURE_SIZE - 24);
+    left = Math.max(0, (w.left || 0) + (w.width || 1200) - CAPTURE_W - 24);
     top = Math.max(0, (w.top || 0) + 84);
   } catch (e) {}
-  const opts = { url: 'capture.html' + (mode === 'list' ? '#list' : ''), type: 'popup', width: CAPTURE_SIZE, height: CAPTURE_SIZE, focused: true };
+  const opts = { url: 'capture.html' + (mode === 'list' ? '#list' : ''), type: 'popup', width: CAPTURE_W, height: CAPTURE_H, focused: true };
   let win;
   try {
     win = await chrome.windows.create(Object.assign({ left, top }, opts));
@@ -918,6 +919,7 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
     let changed = false;
     parked.forEach((p) => {
       if (p.status === 'later' && p.createdAt < cutoff) { p.status = 'archived'; changed = true; }
+      if (p.status === 'done' && (p.doneAt || p.createdAt) < cutoff) { p.status = 'archived'; changed = true; }
     });
     if (changed) await chrome.storage.local.set({ parked });
   } else if (alarm.name === 'cal-poll') {

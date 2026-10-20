@@ -8,7 +8,7 @@
   html, body { height: 100%; overflow: hidden; }
   body { display: flex; flex-direction: column; background: #FFFFFF; }
   header {
-    height: 40px; flex: none; display: flex; align-items: center; gap: 8px;
+    height: 40px; flex: none; display: flex; align-items: center; gap: 6px;
     padding: 0 6px 0 12px; background: var(--grad); color: #FFFFFF;
   }
   header img { width: 18px; height: 18px; filter: brightness(0) invert(1); }
@@ -18,52 +18,103 @@
     background: transparent; color: #FFFFFF; font-size: 14px; font-weight: 600;
     display: inline-flex; align-items: center; justify-content: center; gap: 4px;
   }
-  .hbtn:hover { background: rgba(255, 255, 255, 0.18); }
+  .hbtn:hover, .hbtn[aria-pressed="true"] { background: rgba(255, 255, 255, 0.2); }
   .hbtn:focus-visible { box-shadow: 0 0 0 2px #FFFFFF !important; }
+  svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex: none; }
   main { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+
+  /* Note editor */
+  .stamp { flex: none; padding: 10px 16px 0; font-size: 11.5px; color: var(--g3); text-align: center; }
   textarea {
-    flex: 1; width: 100%; border: 0; resize: none; padding: 14px 14px 8px;
-    font-size: 16px; line-height: 1.45; color: var(--ink); background: #FFFFFF;
+    flex: 1; width: 100%; border: 0; resize: none; padding: 8px 16px 10px;
+    font-size: 15.5px; line-height: 1.55; color: var(--ink); background: #FFFFFF; tab-size: 4;
   }
   textarea::placeholder { color: #A1A1A6; }
   textarea:focus-visible { box-shadow: none !important; }
-  footer {
-    flex: none; display: flex; align-items: center; justify-content: space-between; gap: 8px;
-    padding: 6px 8px 8px 12px; border-top: 1px solid var(--g1);
+  .tools {
+    flex: none; display: flex; align-items: center; gap: 2px;
+    padding: 6px 8px; border-top: 1px solid var(--g1); background: #FBFAFD;
   }
-  footer span { font-size: 11px; color: var(--g3); white-space: nowrap; }
-  .save { min-height: 30px; padding: 0 14px; font-size: 13px; }
-  #list { flex: 1; min-height: 0; overflow-y: auto; margin: 0; padding: 4px 0; list-style: none; }
-  #list button {
-    width: 100%; display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; align-items: center;
-    padding: 8px 12px; border: 0; background: transparent; text-align: left;
+  .tool {
+    height: 32px; min-width: 32px; padding: 0 7px; border: 0; border-radius: 8px; background: transparent;
+    color: var(--g4); display: inline-flex; align-items: center; justify-content: center; gap: 5px; font-size: 12px;
   }
-  #list button:hover { background: var(--lav); }
-  #list .t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13.5px; color: var(--ink); }
-  #list .w { grid-column: 1 / -1; font-size: 11px; color: var(--g3); }
-  .empty { padding: 28px 16px; text-align: center; color: var(--g3); font-size: 13px; }
+  .tool:hover { background: var(--lav); color: var(--v3); }
+  .tools .sep { width: 1px; height: 18px; background: var(--g2); margin: 0 4px; }
+  .tools .grow { flex: 1; }
+  .save { min-height: 32px; padding: 0 14px; font-size: 13px; }
+  .hint { flex: none; padding: 0 12px 6px; font-size: 10.5px; color: var(--g3); background: #FBFAFD; text-align: right; }
+
+  /* Notes list */
+  .list-head { flex: none; display: flex; align-items: center; justify-content: space-between; padding: 10px 14px 6px; }
+  .list-head b { font-size: 13px; }
+  .list-head span { font-size: 11.5px; color: var(--g3); }
+  #list { flex: 1; min-height: 0; overflow-y: auto; margin: 0; padding: 0 0 8px; list-style: none; }
+  #list li { display: grid; grid-template-columns: auto 1fr auto; align-items: start; gap: 8px; padding: 9px 10px 9px 12px; border-bottom: 1px solid var(--g1); }
+  #list li:hover { background: #FBFAFD; }
+  .check {
+    width: 20px; height: 20px; margin-top: 1px; border-radius: 50%; border: 1.5px solid #C7C7CC; background: #FFFFFF;
+    display: inline-flex; align-items: center; justify-content: center; color: #FFFFFF; padding: 0;
+  }
+  .check svg { width: 12px; height: 12px; stroke-width: 2.6; opacity: 0; }
+  .check:hover { border-color: var(--v1); }
+  .done .check { background: var(--v1); border-color: var(--v1); }
+  .done .check svg { opacity: 1; }
+  .open { min-width: 0; border: 0; background: transparent; padding: 0; text-align: left; display: flex; flex-direction: column; gap: 2px; }
+  .open .t { font-size: 13.5px; font-weight: 500; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .open .p { font-size: 12px; color: var(--g5); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .open .w { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--g3); }
+  .open .w .kind { height: 18px; padding: 0 7px; font-size: 10.5px; }
+  .tag-later { font-weight: 600; color: var(--v4); }
+  .done .open .t, .done .open .p { text-decoration: line-through; text-decoration-color: #D63DD0; color: var(--g3); }
+  .acts { display: flex; gap: 2px; }
+  .act { width: 28px; height: 28px; border: 0; border-radius: 8px; background: transparent; color: var(--g3); display: inline-flex; align-items: center; justify-content: center; padding: 0; }
+  .act:hover { background: var(--lav); color: var(--v3); }
+  .act.del:hover { background: #FDECEC; color: #C4314B; }
+  .act[aria-pressed="true"] { color: var(--v4); background: var(--lav); }
+  .divider { padding: 12px 14px 4px !important; display: block !important; border: 0 !important; font-size: 11px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--g3); background: transparent !important; }
+  .empty { padding: 28px 16px; text-align: center; color: var(--g3); font-size: 13px; display: block !important; border: 0 !important; }
+  .undo {
+    position: fixed; left: 10px; right: 10px; bottom: 10px; display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 8px 8px 14px; border-radius: 12px; background: #1D1D1F; color: #FFFFFF; font-size: 13px;
+  }
+  .undo button { border: 0; background: transparent; color: #E9D5FF; font-weight: 600; font-size: 13px; padding: 4px 8px; border-radius: 6px; }
+  .undo button:hover { background: rgba(255, 255, 255, 0.12); }
   [hidden] { display: none !important; }
 </style>
 </head>
 <body>
 <header>
   <img src="assets/ring.png" alt="">
-  <h1 id="title">Still capture</h1>
-  <button class="hbtn" id="new" title="New note" aria-label="New note">+</button>
-  <button class="hbtn" id="past" title="Past thoughts" aria-label="Past thoughts">☰ <span id="count">0</span></button>
-  <button class="hbtn" id="close" title="Close (Esc)" aria-label="Close">✕</button>
+  <h1 id="title">New note</h1>
+  <button class="hbtn" id="new" title="New note" aria-label="New note"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+  <button class="hbtn" id="past" title="All notes" aria-label="All notes" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg><span id="count">0</span></button>
+  <button class="hbtn" id="close" title="Save and close (Esc)" aria-label="Save and close"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
 </header>
+
 <main id="note">
-  <label class="sr-only" for="text">Thought</label>
-  <textarea id="text" autofocus placeholder="What's pulling at you? Jot it down and get back to work."></textarea>
-  <footer>
-    <span>Enter saves · Shift+Enter new line</span>
+  <div class="stamp" id="stamp"></div>
+  <label class="sr-only" for="text">Note</label>
+  <textarea id="text" autofocus spellcheck="true" placeholder="What's pulling at you? Jot it down and get back to work."></textarea>
+  <div class="tools" role="toolbar" aria-label="Formatting">
+    <button class="tool" data-fmt="check" title="Checklist" aria-label="Checklist"><svg viewBox="0 0 24 24"><circle cx="7" cy="7" r="3"/><path d="M13 7h8M13 17h8"/><circle cx="7" cy="17" r="3"/></svg></button>
+    <button class="tool" data-fmt="bullet" title="Bulleted list" aria-label="Bulleted list"><svg viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1" fill="currentColor"/><circle cx="4.5" cy="12" r="1" fill="currentColor"/><circle cx="4.5" cy="18" r="1" fill="currentColor"/></svg></button>
+    <button class="tool" data-fmt="num" title="Numbered list" aria-label="Numbered list"><svg viewBox="0 0 24 24"><path d="M10 6h10M10 12h10M10 18h10M4 5l1.5-1v5M3.5 14.5c.3-.9 2.6-1 2.6.4 0 1.1-2.6 2-2.6 3.1h2.8"/></svg></button>
+    <span class="sep"></span>
+    <button class="tool" id="discard" title="Discard this note" aria-label="Discard"><svg viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg></button>
+    <span class="grow"></span>
     <button class="btn btn-primary save" id="save">Save</button>
-  </footer>
+  </div>
+  <div class="hint">Enter adds a line · Ctrl+Enter saves · Esc saves and closes</div>
 </main>
+
 <main id="past-view" hidden>
-  <ul id="list" aria-label="Past thoughts"></ul>
+  <div class="list-head"><b>Your notes</b><span>Tick the circle when it's done</span></div>
+  <ul id="list" aria-label="Your notes"></ul>
 </main>
+
+<div class="undo" id="undo" role="status" hidden><span id="undo-text">Deleted.</span><button id="undo-btn">Undo</button></div>
+
 <script type="module" src="js/capture.js"></script>
 </body>
 </html>

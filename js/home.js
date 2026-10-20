@@ -513,10 +513,11 @@ function renderBucket() {
   }
 
   const later = items.filter((p) => p.status === 'later').sort((a, b) => b.createdAt - a.createdAt);
-  if (!later.length) { $('later').innerHTML = ''; return; }
+  const done = items.filter((p) => p.status === 'done').sort((a, b) => (b.doneAt || 0) - (a.doneAt || 0));
+  if (!later.length && !done.length) { $('later').innerHTML = ''; return; }
   const groups = [['task', 'Tasks'], ['link', 'Links'], ['idea', 'Ideas']];
   $('later').innerHTML = `
-    <div class="later-head"><b>Later</b><span class="muted small">Sorted for you · items older than 8 days archive themselves</span></div>
+    ${later.length ? '<div class="later-head"><b>Later</b><span class="muted small">Sorted for you · items older than 8 days archive themselves</span></div>' : ''}
     ${groups.map(([kind, title]) => {
       const list = later.filter((p) => p.kind === kind);
       if (!list.length) return '';
@@ -528,7 +529,12 @@ function renderBucket() {
           <button class="btn btn-ghost" data-rev="delete" data-id="${esc(p.id)}" aria-label="Delete">Delete</button>
         </div>`;
       }).join('')}</div>`;
-    }).join('')}`;
+    }).join('')}
+    ${done.length ? `<div class="group done-group"><h3>Done · ${done.length}</h3>${done.map((p) => `<div class="item done">
+        <div class="item-text"><span>${esc(p.text)}</span><small>Struck off ${esc(fmtWhen(p.doneAt || p.createdAt))}</small></div>
+        <button class="btn" data-rev="undone" data-id="${esc(p.id)}">Bring back</button>
+        <button class="btn btn-ghost" data-rev="delete" data-id="${esc(p.id)}" aria-label="Delete">Delete</button>
+      </div>`).join('')}</div>` : ''}`;
 }
 
 async function reviewAction(act, id) {
@@ -537,7 +543,8 @@ async function reviewAction(act, id) {
   if (!item) return;
   const wasNew = item.status === 'new';
   if (act === 'later') item.status = 'later';
-  const next = act === 'later' ? parked : parked.filter((p) => p.id !== id);
+  if (act === 'undone') { item.status = item.prev || 'new'; delete item.prev; delete item.doneAt; }
+  const next = act === 'later' || act === 'undone' ? parked : parked.filter((p) => p.id !== id);
   await chrome.storage.local.set({ parked: next });
   state.parked = next;
   if (wasNew) reviewed++;

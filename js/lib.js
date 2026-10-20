@@ -61,7 +61,8 @@ export const KINDS = {
 const TASK_VERBS = ['check', 'look', 'read', 'write', 'email', 'call', 'fix', 'book', 'buy', 'review', 'send', 'update', 'ask', 'schedule', 'plan', 'draft', 'research', 'follow'];
 
 export function kindOf(text) {
-  const t = String(text || '').trim().toLowerCase();
+  // Notes can start with a list marker from the capture toolbar; classify the words after it.
+  const t = String(text || '').trim().toLowerCase().replace(/^(?:[☐☑•]|\d+\.)\s*/, '');
   if (/^(https?:\/\/|www\.)\S+$/.test(t) || /^[a-z0-9-]+(\.[a-z0-9-]+)+(\/\S*)?$/.test(t)) return 'link';
   const first = t.split(/\s+/)[0].replace(/[^a-z]/g, '');
   return TASK_VERBS.includes(first) ? 'task' : 'idea';
