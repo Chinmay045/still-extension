@@ -785,6 +785,10 @@ function renderSummary() {
 const WEEKDAY = (key) => new Date(key + 'T12:00:00Z').toLocaleDateString([], { weekday: 'short', timeZone: 'UTC' });
 const LONGDAY = (key) => new Date(key + 'T12:00:00Z').toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric', timeZone: 'UTC' });
 const plural = (n, one, many) => n + ' ' + (n === 1 ? one : many || one + 's');
+const emptyBin = () => ({ done: 0, early: 0, doneN: 0, earlyN: 0 });
+let insRange = 'week';
+let insBack = 0; // how many days, weeks or months back from now
+
 const DAYPARTS = [
   { name: 'Morning', range: '5 am to 12 pm', from: 5, to: 12 },
   { name: 'Afternoon', range: '12 pm to 5 pm', from: 12, to: 17 },
@@ -826,14 +830,11 @@ function insightData() {
     const t = h.endedAt - (h.minutesFocused || 0) * 60000;
     const k = dayKey(t, localOffset(t));
     first = Math.min(first, dayNumber(k));
-    const b = byDay[k] || (byDay[k] = { done: 0, early: 0, doneN: 0, earlyN: 0 });
-    if (h.reason === 'timeup' || h.reason === 'calendar') { b.done += h.minutesFocused || 0; b.doneN += 1; }
-    else { b.early += h.minutesFocused || 0; b.earlyN += 1; }
-  }
-  const daily = [];
-  for (let n = Math.min(first, today - 6); n <= today; n += 1) {
-    const k = keyFromNumber(n);
-    daily.push({ key: k, today: n === today, before: n < first, ...(byDay[k] || { done: 0, early: 0, doneN: 0, earlyN: 0 }) });
+    const hk = k + 'T' + new Date(t).getHours();
+    for (const b of [byDay[k] || (byDay[k] = emptyBin()), byDay[hk] || (byDay[hk] = emptyBin())]) {
+      if (h.reason === 'timeup' || h.reason === 'calendar') { b.done += h.minutesFocused || 0; b.doneN += 1; }
+      else { b.early += h.minutesFocused || 0; b.earlyN += 1; }
+    }
   }
   const fortnight = [];
   for (let n = today - 13; n <= today; n += 1) {
@@ -854,7 +855,7 @@ function insightData() {
   return {
     pr, completed: completed.length, early: early.length, sessions: focus.length,
     calendar: hist.length - focus.length, totalMin, avgMin, impulses, overrides,
-    daily, first: keyFromNumber(first), sinceDays: today - first + 1, fortnight, parts, parked: (state.parked || []).length,
+    byDay, first, today, fortnight, parts, parked: (state.parked || []).length,
     recent: hist.slice(-4).reverse()
   };
 }
@@ -927,35 +928,73 @@ function renderInsights() {
     ${kpi(d.parked, '', d.parked === 1 ? 'Thought in bucket' : 'Thoughts in bucket')}
   </div>`;
 
-  // Every day since you started: minutes per day, completed and ended early stacked.
-  const dl = d.daily;
-  const max = Math.max(SCORING.minEligibleMinutes * 3, ...dl.map((x) => x.done + x.early));
-  const peak = Math.max(...dl.map((x) => x.done + x.early));
-  const step = Math.ceil(dl.length / 8);
+  // Activity chart: Day (by hour), Week (7 days) or Month, stepping back to the day you started.
   const shortDate = (k) => new Date(k + 'T12:00:00Z').toLocaleDateString([], { month: 'short', day: 'numeric', timeZone: 'UTC' });
-  const dayLabel = (x) => (x.today ? 'Today' : dl.length <= 7 ? WEEKDAY(x.key) : shortDate(x.key));
-  const bars = dl.map((x, i) => {
+  const ymd = (k) => k.split('-').map(Number);
+  let cols = [], range = '', hourly = false, canBack = false, ndays = 1;
+  if (insRange === 'day') {
+    hourly = true;
+    const n = d.today - insBack, k = keyFromNumber(n);
+    canBack = n > d.first;
+    range = n === d.today ? 'Today, ' + shortDate(k) : LONGDAY(k);
+    const hourName = (h) => (h % 12 || 12) + (h < 12 ? ' am' : ' pm');
+    for (let h = 0; h < 24; h += 1) {
+      cols.push({ key: k, tipHead: hourName(h) + ' to ' + hourName((h + 1) % 24), label: h % 6 === 0 ? hourName(h) : '', ...(d.byDay[k + 'T' + h] || emptyBin()) });
+    }
+  } else if (insRange === 'week') {
+    const end = d.today - insBack * 7, start = end - 6;
+    canBack = start > d.first;
+    ndays = 7;
+    const [y1] = ymd(keyFromNumber(start)), [y2] = ymd(keyFromNumber(end));
+    range = shortDate(keyFromNumber(start)) + ' – ' + shortDate(keyFromNumber(end)) + ', ' + (y1 === y2 ? y2 : y1 + '–' + y2);
+    for (let n = start; n <= end; n += 1) {
+      const k = keyFromNumber(n);
+      cols.push({ key: k, tipHead: LONGDAY(k), label: n === d.today ? 'Today' : WEEKDAY(k), today: n === d.today, before: n < d.first, ...(d.byDay[k] || emptyBin()) });
+    }
+  } else {
+    const [ty, tm] = ymd(keyFromNumber(d.today));
+    const m0 = new Date(Date.UTC(ty, tm - 1 - insBack, 1));
+    const startN = Math.round(m0.getTime() / 86400000);
+    const endN = Math.round(Date.UTC(m0.getUTCFullYear(), m0.getUTCMonth() + 1, 1) / 86400000) - 1;
+    canBack = startN > d.first;
+    range = m0.toLocaleDateString([], { month: 'long', year: 'numeric', timeZone: 'UTC' });
+    ndays = Math.min(endN, d.today) - Math.max(startN, d.first) + 1;
+    for (let n = startN; n <= endN; n += 1) {
+      const k = keyFromNumber(n), day = n - startN + 1;
+      cols.push({ key: k, tipHead: LONGDAY(k), label: n === d.today ? 'Today' : (day === 1 || day % 7 === 1) && Math.abs(n - d.today) > 2 ? String(day) : '', today: n === d.today, before: n < d.first || n > d.today, ...(d.byDay[k] || emptyBin()) });
+    }
+  }
+  const totalMin = cols.reduce((n, x) => n + x.done + x.early, 0);
+  const max = Math.max(hourly ? 30 : SCORING.minEligibleMinutes * 3, ...cols.map((x) => x.done + x.early));
+  const peak = Math.max(...cols.map((x) => x.done + x.early));
+  const bars = cols.map((x) => {
     const tot = x.done + x.early;
     const hd = x.done ? Math.max(3, (x.done / max) * 100) : 0;
     const he = x.early ? Math.max(3, (x.early / max) * 100) : 0;
     const parts = [];
     if (x.doneN) parts.push(x.doneN + ' completed');
     if (x.earlyN) parts.push(x.earlyN + ' ended early');
-    const tip = LONGDAY(x.key) + ': ' + (x.before ? 'before you started' : tot || parts.length ? tot + ' min · ' + parts.join(', ') : 'no sessions');
-    const label = tot && (x.today || tot === peak) && dl.length <= 31 ? `<span class="wk-val" style="bottom:${hd + he}%">${tot}</span>` : '';
-    const showDay = x.today || (dl.length - 1 - i) % step === 0;
+    const tip = x.tipHead + ': ' + (x.before ? (x.key > keyFromNumber(d.today) ? 'still to come' : 'before you started') : parts.length ? tot + ' min · ' + parts.join(', ') : 'no sessions');
+    const label = tot && (x.today || tot === peak) ? `<span class="wk-val" style="bottom:${hd + he}%">${tot}</span>` : '';
     return `<div class="wk-col${x.today ? ' today' : ''}${x.before ? ' before' : ''}" tabindex="0" data-tip="${esc(tip)}" aria-label="${esc(tip)}">
       <div class="wk-plot">${tot ? `<div class="wk-stack">${label}${he ? `<div class="wk-bar early" style="height:${he}%"></div>` : ''}${hd ? `<div class="wk-bar" style="height:${hd}%"></div>` : ''}</div>` : '<div class="wk-zero"></div>'}</div>
-      <span class="wk-day">${showDay ? dayLabel(x) : ''}</span>
+      <span class="wk-day">${x.label}</span>
     </div>`;
   }).join('');
-  const activeDays = dl.filter((x) => x.doneN + x.earlyN).length;
-  const allMin = dl.reduce((n, x) => n + x.done + x.early, 0);
-  const table = `<table class="sr-only"><caption>Focus minutes per day since you started</caption><thead><tr><th>Day</th><th>Completed minutes</th><th>Ended early minutes</th></tr></thead><tbody>${dl.map((x) => `<tr><td>${LONGDAY(x.key)}</td><td>${x.done}</td><td>${x.early}</td></tr>`).join('')}</tbody></table>`;
+  const avg = Math.round(totalMin / Math.max(1, ndays));
+  const table = `<table class="sr-only"><caption>Focus minutes, ${esc(range)}</caption><thead><tr><th>${hourly ? 'Hour' : 'Day'}</th><th>Completed minutes</th><th>Ended early minutes</th></tr></thead><tbody>${cols.map((x) => `<tr><td>${esc(x.tipHead)}</td><td>${x.done}</td><td>${x.early}</td></tr>`).join('')}</tbody></table>`;
+  const seg = ['day', 'week', 'month'].map((r) => `<button type="button" data-range="${r}" aria-pressed="${insRange === r}">${r[0].toUpperCase() + r.slice(1)}</button>`).join('');
   const week = `<article class="tile-b b-week">
-    <div class="b-head"><div><div class="b-label">Every day since you started · ${shortDate(d.first)}</div><div class="b-kv"><b>${allMin}</b><span>min across ${plural(activeDays, 'active day')} of ${d.sinceDays}</span></div></div>
-      <div class="wk-key"><span><i class="lg-done"></i>Completed</span><span><i class="lg-early"></i>Ended early</span></div></div>
-    <div class="wk-chart${dl.length > 7 ? ' dense' : ''}" style="grid-template-columns:repeat(${dl.length}, minmax(0, 1fr))" role="img" aria-label="Focus minutes per day since you started">${bars}</div>
+    <div class="b-head">
+      <div><div class="b-label">${hourly ? 'Total' : 'Daily average'} · ${esc(range)}</div>
+        <div class="b-kv"><b>${hourly ? totalMin : avg}</b><span>min</span><span class="wk-key"><span><i class="lg-done"></i>Completed</span><span><i class="lg-early"></i>Ended early</span></span></div></div>
+      <div class="ins-ctl">
+        <button type="button" class="ins-arrow" data-step="1" aria-label="Earlier"${canBack ? '' : ' disabled'}><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M10 3 5 8l5 5"/></svg></button>
+        <div class="ins-seg" role="group" aria-label="Chart range">${seg}</div>
+        <button type="button" class="ins-arrow" data-step="-1" aria-label="Later"${insBack ? '' : ' disabled'}><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m6 3 5 5-5 5"/></svg></button>
+      </div>
+    </div>
+    <div class="wk-chart${cols.length > 7 ? ' dense' : ''}" style="grid-template-columns:repeat(${cols.length}, minmax(0, 1fr))" role="img" aria-label="Focus minutes, ${esc(range)}">${bars}</div>
     ${table}
   </article>`;
 
@@ -1017,6 +1056,17 @@ function showTip(el) {
   tipEl.style.left = Math.min(Math.max(8, r.left + r.width / 2 - w / 2), innerWidth - w - 8) + 'px';
   tipEl.style.top = (r.top - h - 8 < 8 ? r.bottom + 8 : r.top - h - 8) + 'px';
 }
+$('insights').addEventListener('click', (e) => {
+  const r = e.target.closest('[data-range]');
+  const st = e.target.closest('[data-step]');
+  if (r) { insRange = r.dataset.range; insBack = 0; }
+  else if (st && !st.disabled) insBack = Math.max(0, insBack + Number(st.dataset.step));
+  else return;
+  showTip(null);
+  renderInsights();
+  const again = $('insights').querySelector(r ? `[data-range="${insRange}"]` : `[data-step="${st.dataset.step}"]`);
+  if (again && !again.disabled) again.focus();
+});
 $('insights').addEventListener('pointerover', (e) => showTip(e.target.closest('[data-tip]')));
 $('insights').addEventListener('focusin', (e) => showTip(e.target.closest('[data-tip]')));
 $('insights').addEventListener('pointerleave', () => showTip(null));
@@ -1048,3 +1098,13 @@ window.addEventListener('hashchange', route);
 renderNav();
 route();
 document.querySelectorAll('.still-auto').forEach((el) => { el.innerHTML = stillify(el.textContent); });
+
+// "How points work" closes when you click anywhere else or press Esc.
+document.addEventListener('click', (e) => {
+  const how = document.querySelector('.ins-how[open]');
+  if (how && !how.contains(e.target)) how.open = false;
+});
+document.addEventListener('keydown', (e) => {
+  const how = document.querySelector('.ins-how[open]');
+  if (e.key === 'Escape' && how) { how.open = false; how.querySelector('summary').focus(); }
+});
