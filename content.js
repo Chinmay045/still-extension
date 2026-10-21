@@ -10,6 +10,9 @@
     ['gamma', 'Gamma 40 Hz binaural'],
     ['beta', 'Beta pulse music'],
     ['cafe', 'Cafe murmur'],
+    ['white', 'White noise'],
+    ['pink', 'Pink noise'],
+    ['brown', 'Brown noise'],
     ['off', 'Silence']
   ];
   // The ring is inlined: a chrome-extension:// image on a web page fails with "Unsafe attempt

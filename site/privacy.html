@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy policy · Still</title>
+<meta name="description" content="How the Still Chrome extension handles your data. Everything stays on your device.">
+<link rel="icon" href="assets/icon-32.png">
+<link rel="stylesheet" href="css/still.css">
+<link rel="stylesheet" href="css/home.css">
+<link rel="stylesheet" href="site.css">
+</head>
+<body>
+<nav class="nav" aria-label="Main">
+  <a href="index.html" class="brand" aria-label="Still home"><img src="assets/logo.png" alt="Still"></a>
+  <div class="nav-links">
+    <a href="index.html#features">Features</a>
+    <a href="privacy.html" aria-current="page">Privacy</a>
+    <a class="add-btn" data-add href="#">Add to Chrome</a>
+  </div>
+</nav>
+<main class="doc">
+  <h1>Privacy policy</h1>
+  <p class="updated">Last updated: 21 October 2026</p>
+
+  <p><b>Short version:</b> Still keeps everything on your own computer. We don't have a server, we don't collect analytics, and we never sell or share your data.</p>
+
+  <h2>What Still stores</h2>
+  <p>Still saves these in your browser's extension storage (<code>chrome.storage</code>) on your device only:</p>
+  <ul>
+    <li>Your settings: blocked sites, focus length, sounds and preferences.</li>
+    <li>Your focus sessions: task name, start and end time, minutes focused, and how many times a blocked site was opened.</li>
+    <li>Thoughts you write into the Bucket.</li>
+    <li>Points and streaks worked out from your sessions.</li>
+  </ul>
+  <p>This data never leaves your device. Removing the extension deletes it.</p>
+
+  <h2>Google Calendar (optional)</h2>
+  <p>If you choose <b>Sign in with Google</b>, Still asks for read-only access to your calendar events (<code>calendar.events.readonly</code>). It uses this only to:</p>
+  <ul>
+    <li>show your next event and nudge you a few minutes before it starts, and</li>
+    <li>block distracting sites while an event is running, if you turn that on.</li>
+  </ul>
+  <p>Still reads the title, start time and end time of your upcoming events, directly from Google to your browser. It stores those few fields on your device and never sends them anywhere else. Still cannot create, change or delete calendar events. You can disconnect at any time in Still's Settings, which also revokes the access, or from your <a href="https://myaccount.google.com/permissions" target="_blank" rel="noopener">Google account permissions</a>.</p>
+  <p>Still's use and transfer of information received from Google APIs adheres to the <a href="https://developers.google.com/terms/api-services-user-data-policy" target="_blank" rel="noopener">Google API Services User Data Policy</a>, including the Limited Use requirements.</p>
+
+  <h2>Websites you visit</h2>
+  <p>To block a site, Still checks the address of the page you open against your own list of blocked sites, inside your browser. It doesn't record your browsing history and doesn't read the content of pages. During a focus session it shows a small timer on pages you visit; that timer doesn't read or change the page.</p>
+
+  <h2>What we don't do</h2>
+  <ul>
+    <li>No accounts, no tracking, no analytics, no ads.</li>
+    <li>No selling or sharing of data with anyone.</li>
+    <li>No use of your data for anything other than the features above.</li>
+  </ul>
+
+  <h2>Changes</h2>
+  <p>If this policy changes, the new version will appear on this page with a new date.</p>
+
+  <h2>Contact</h2>
+  <p>Questions about privacy: <span data-email>use the contact link on the Chrome Web Store listing</span>.</p>
+</main>
+<footer class="foot">
+  <span>© <span id="year"></span> Still</span>
+  <span><a href="index.html">Home</a></span>
+</footer>
+<script src="config.js"></script>
+<script src="site.js"></script>
+</body>
+</html>

@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Still: focus for Chrome</title>
+<meta name="description" content="Still is a calm focus extension for Chrome. Name one task, block distracting sites, park stray thoughts, and see your streaks and focus time.">
+<meta property="og:title" content="Still: Stop switching. Start finishing.">
+<meta property="og:description" content="A calm focus extension for Chrome. One task, no noise.">
+<meta property="og:image" content="assets/icon-128.png">
+<link rel="icon" href="assets/icon-32.png">
+<link rel="stylesheet" href="css/still.css">
+<link rel="stylesheet" href="css/home.css">
+<link rel="stylesheet" href="site.css">
+</head>
+<body>
+<nav class="nav" aria-label="Main">
+  <a href="#home" class="brand" aria-label="Still home"><img src="assets/logo.png" alt="Still"></a>
+  <div class="nav-links">
+    <a href="#compare">See it</a>
+    <a href="#features">Features</a>
+    <a href="privacy.html">Privacy</a>
+    <a class="add-btn" data-add href="#">Add to Chrome</a>
+  </div>
+</nav>
+<main>
+<section id="home">
+  <div class="hero">
+    <img class="hero-ring" src="assets/hero-ring.png" alt="" aria-hidden="true">
+    <div class="hero-fade" aria-hidden="true"></div>
+    <div class="hero-copy">
+      <span class="eyebrow">Still for Chrome</span>
+      <h1 class="hero-h1">Stop switching.<br><span class="hero-accent">Start finishing.</span></h1>
+      <p class="hero-sub">Focus, beautifully kept.</p>
+      <div class="hero-cta"><a class="add-btn" data-add href="#">Add to Chrome</a><span class="free">Free. No account needed.</span></div>
+      <button class="curious" id="to-compare" type="button"><span class="pulse"></span>Your workday, with and without <span class="still-word">Still</span> ↓</button>
+    </div>
+  </div>
+
+  <div class="section" id="compare">
+    <div class="sec-head">
+      <h2 class="big">Less noise. More you.</h2>
+      <span class="muted">Drag the handle to compare.</span>
+    </div>
+    <div class="vs" id="vs">
+      <div class="vs-after"><img src="assets/slider-after.jpg" alt="With Still: calm and focused on one task"></div>
+      <div class="vs-before"><img src="assets/slider-before.jpg" alt="Without Still: distracted by tabs and notifications"></div>
+      <div class="vs-line" aria-hidden="true"></div>
+      <input class="vs-range" id="vs-range" type="range" min="20" max="80" value="80" aria-label="Compare your workday without and with Still">
+      <div class="vs-handle" aria-hidden="true"><span class="vs-arrow">‹</span><span>Go <span class="still-word">Still</span></span></div>
+    </div>
+  </div>
+
+  <div class="section intent" id="features">
+    <h2 class="big">Designed around<br><span class="accent">a single intention.</span></h2>
+    <p class="muted lead">Every detail removes one more reason to look away. Name one task, let <span class="still-word">Still</span> close the noise, and park every stray thought without leaving your tab.</p>
+  </div>
+
+  <div class="section tiles">
+    <div class="tile tile-dark tile-wide">
+      <span class="tile-eyebrow">One task</span>
+      <div class="typing"><span id="typing"></span><span class="caret" aria-hidden="true"></span></div>
+      <p class="tile-foot">Say what matters. Then only that.</p>
+    </div>
+    <div class="tile tile-soft">
+      <span class="tile-eyebrow dark">Block now, or while you focus</span>
+      <ul class="struck">
+        <li><span>youtube.com</span><em>Blocked</em></li>
+        <li><span>x.com</span><em>Blocked</em></li>
+        <li><span>reddit.com</span><em>Blocked</em></li>
+      </ul>
+      <p class="tile-title">Distractions, quietly closed.</p>
+    </div>
+    <div class="tile tile-soft tile-half">
+      <span class="tile-eyebrow dark">Capture thought</span>
+      <div class="drop-stage" aria-hidden="true">
+        <span class="drop-pill">Check the Stripe invoice</span>
+        <div class="keys"><kbd>Alt</kbd><span>+</span><kbd>P</kbd></div>
+      </div>
+      <p class="tile-title">Park the thought. Keep the flow.</p>
+    </div>
+    <div class="tile tile-soft tile-half">
+      <span class="tile-eyebrow dark">Calendar</span>
+      <div class="note-stage" aria-hidden="true">
+        <div class="note-card">
+          <span class="note-icon"><span></span></span>
+          <div><b>Starts in 10 minutes</b><span>Portfolio case study · 3:00 PM</span></div>
+        </div>
+      </div>
+      <p class="tile-title">Ready before it begins.</p>
+      <p class="muted small">Connect Google Calendar and Still nudges you a few minutes before a task, so you start prepared.</p>
+    </div>
+    <div class="tile tile-soft tile-full">
+      <span class="tile-eyebrow dark">Sound</span>
+      <div class="bars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+      <p class="tile-title">Sound, chosen by research.</p>
+      <p class="muted small">Lyric free music, 40 Hz gamma beats, a beta pulse, cafe murmur, and white, pink or brown noise. Always soft, never clipped.</p>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="cta">
+      <img src="assets/logo.png" alt="Still" class="cta-logo">
+      <p class="cta-line">Your next hour, back to you.</p>
+      <a class="add-btn" data-add href="#">Add to Chrome</a>
+    </div>
+  </div>
+</section>
+</main>
+<footer class="foot">
+  <span>© <span id="year"></span> Still</span>
+  <span><a href="privacy.html">Privacy policy</a></span>
+</footer>
+<script src="config.js"></script>
+<script src="site.js"></script>
+</body>
+</html>
