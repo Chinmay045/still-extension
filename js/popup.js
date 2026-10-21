@@ -26,9 +26,7 @@ function calendarTask(calendar, calEvents) {
 }
 
 async function render() {
-  const { session, prefs, parked, settings, calendar, calEvents } = await getAll();
-  const fresh = parked.filter((p) => p.status === 'new').length;
-  $('bucket-count').textContent = fresh ? '· ' + fresh : '';
+  const { session, prefs, settings, calendar, calEvents } = await getAll();
   $('idle').hidden = !!session;
   $('active').hidden = !session;
   const c = calState(calendar);
@@ -66,7 +64,7 @@ $('cal').addEventListener('click', async () => {
   render();
 });
 $('start').addEventListener('click', start);
-$('to-bucket').addEventListener('click', () => { send('openHome', { hash: 'bucket' }); window.close(); });
+$('to-insights').addEventListener('click', () => { send('openHome', { hash: 'insights' }); window.close(); });
 $('to-block').addEventListener('click', () => { send('openHome', { hash: 'block' }); window.close(); });
 $('to-capture').addEventListener('click', async () => { await send('openCapture'); window.close(); });
 
