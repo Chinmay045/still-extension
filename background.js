@@ -3,7 +3,7 @@
 // The focus circle only primes the mind and never blocks. Sites are blocked while a focus
 // session's timer runs, and from a synced calendar task's start to its end.
 import { applySession, localOffset } from './js/progress.js';
-import { getAll, patch, kindOf, uid, normalizeDomain, fmtTime, untilText, NO_END, rupees, pledgeArmed, GOOGLE_CLIENT_ID, WALLET_API, WALLET_ENABLED, THEMES, SOUNDS } from './js/lib.js';
+import { getAll, patch, kindOf, uid, normalizeDomain, fmtTime, untilText, NO_END, rupees, pledgeArmed, BUILD, GOOGLE_CLIENT_ID, WALLET_API, WALLET_ENABLED, THEMES, SOUNDS } from './js/lib.js';
 
 const CAPTURE_W = 360;
 const CAPTURE_H = 400;
@@ -1257,6 +1257,7 @@ const handlers = {
   testBlock: () => testBlock(),
   endBlock: () => endBlock(),
   stopBlock: (m) => stopBlock(!!m.forfeit),
+  ping: () => ({ build: BUILD }),
   blockNow: (m) => blockNow(Number(m.minutes) || 0, !!m.strict),
   extendManual: (m) => extendManual(Number(m.minutes) || 15),
   stopManual: () => stopManual(),

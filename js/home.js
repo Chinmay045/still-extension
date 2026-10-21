@@ -1,5 +1,5 @@
 import { attachSuggest } from './site-suggest.js';
-import { untilText, NO_END, GOOGLE_CLIENT_ID, WALLET_API, WALLET_ENABLED, PLEDGES, CHARITIES, rupees, pledgeArmed, getAll, patch, send, esc, stillify, fmtWhen, fmtTime, ageDays, normalizeDomain, reducedMotion, KINDS, SOUNDS, THEMES } from './lib.js';
+import { BUILD, untilText, NO_END, GOOGLE_CLIENT_ID, WALLET_API, WALLET_ENABLED, PLEDGES, CHARITIES, rupees, pledgeArmed, getAll, patch, send, esc, stillify, fmtWhen, fmtTime, ageDays, normalizeDomain, reducedMotion, KINDS, SOUNDS, THEMES } from './lib.js';
 import { mountVolume } from './volume.js';
 import { SCORING, summarize, encouragement, localOffset, dayKey, dayNumber, keyFromNumber } from './progress.js';
 import { mountSession } from './session-ui.js';
@@ -48,6 +48,18 @@ function current() {
   if (VIEWS.includes(h)) return h;
   return state.seenWelcome ? 'setup' : 'home';
 }
+
+// After an update Chrome can keep running the old background worker until Still is
+// reloaded, and then new buttons do nothing. Spot that and offer the reload.
+async function checkBuild(force) {
+  const r = await send('ping');
+  const stale = !r || r.build !== BUILD;
+  $('reload-bar').hidden = !stale;
+  if (stale && force) $('reload-bar').scrollIntoView({ block: 'nearest' });
+  return !stale;
+}
+$('reload-still').addEventListener('click', () => chrome.runtime.reload());
+checkBuild();
 
 function toast(text) {
   const t = $('toast');
@@ -616,7 +628,12 @@ $('block-now').addEventListener('click', async (e) => {
     act.disabled = true;
     if (act.dataset.bn === 'start') {
       if (!state.settings.sites.length) { act.disabled = false; toast('Add a site below first.'); return; }
-      await send('blockNow', { minutes: bnMinutes(), strict: state.prefs.blockMin !== 0 && state.prefs.blockStrict });
+      const res = await send('blockNow', { minutes: bnMinutes(), strict: state.prefs.blockMin !== 0 && state.prefs.blockStrict });
+      if (!res || res.ok === false) {
+        act.disabled = false;
+        checkBuild(true);
+        return;
+      }
     } else if (act.dataset.bn === 'more') await send('extendManual', { minutes: 15 });
     else if (act.dataset.bn === 'stop') await send('stopManual');
     state = await getAll();

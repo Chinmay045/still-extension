@@ -549,3 +549,7 @@ main:focus { outline: none; }
 .bn-lock { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; color: #E9DDF8; }
 .bn-lock svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linejoin: round; }
 @media (max-width: 560px) { .bn-opts { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* Shown when the running background worker is older than these pages. */
+.reload-bar { position: sticky; top: 68px; z-index: 19; display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 14px; padding: 10px 16px; background: #17151C; color: #E9DDF8; font-size: 14px; }
+.reload-bar b { color: #FFFFFF; font-weight: 600; }

@@ -143,6 +143,11 @@ export function fmtClock(ms) {
   return String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
 }
 
+// Bump when background.js changes. Pages compare it with the running service worker,
+// because after a git pull Chrome serves the new pages but keeps the old worker until
+// the extension is reloaded.
+export const BUILD = '2026-10-21b';
+
 // A block with no end ("until I stop it") uses this as its end time.
 export const NO_END = 8.64e15;
 
