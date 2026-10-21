@@ -15,7 +15,7 @@ const arg = (name) => { const i = process.argv.indexOf(name); return i > 0 ? pro
 
 // Only what the extension runs. backend/, tests/, docs/, scripts/ and site/ stay out.
 const SHIP = [
-  'manifest.json', 'background.js', 'content.js',
+  'manifest.json', 'background.js', 'content.js', 'guard.js',
   'home.html', 'popup.html', 'focus.html', 'blocked.html', 'capture.html', 'nudge.html', 'offscreen.html',
   'js', 'css', 'fonts', 'assets'
 ];

@@ -580,6 +580,7 @@ async function allowOnce(url, tabId) {
   let host = '';
   try { host = new URL(url).hostname; } catch (e) { return; }
   const id = OVERRIDE_RULE_BASE + (Date.now() % 1000);
+  await chrome.storage.session.set({ allowOnce: { tabId, host, until: Date.now() + 30000 } }).catch(() => {});
   await chrome.declarativeNetRequest.updateSessionRules({
     addRules: [{ id, priority: 10, action: { type: 'allow' }, condition: { requestDomains: [host], resourceTypes: ['main_frame'], tabIds: [tabId] } }]
   });
@@ -593,6 +594,26 @@ async function allowOnce(url, tabId) {
   chrome.tabs.onUpdated.addListener(onUpdated);
   setTimeout(() => { chrome.tabs.onUpdated.removeListener(onUpdated); drop(); }, 30000);
   await chrome.tabs.update(tabId, { url });
+}
+
+// Asked by guard.js on every page load: the backstop for browsers that let a page
+// past the redirect rules. Returns the block page address when this page is blocked.
+async function checkBlocked(url, tab) {
+  if (!tab) return null;
+  const { block, settings } = await getAll();
+  if (!block || !(block.end > Date.now())) return null;
+  let host = '';
+  try { host = new URL(url).hostname.replace(/^www\./, ''); } catch (e) { return null; }
+  const hit = blockSites(block, settings).map(normalizeDomain).filter(Boolean)
+    .some((d) => host === d || host.endsWith('.' + d));
+  if (!hit) return null;
+  // The one page load "Open anyway" allowed.
+  const { allowOnce: ok } = await chrome.storage.session.get('allowOnce').catch(() => ({}));
+  if (ok && ok.tabId === tab.id && ok.until > Date.now() && (host === ok.host.replace(/^www\./, '') || host.endsWith('.' + ok.host))) {
+    await chrome.storage.session.remove('allowOnce');
+    return null;
+  }
+  return { redirect: chrome.runtime.getURL('blocked.html') + '#' + url };
 }
 
 // ---------- calendar-task blocking ----------
@@ -1304,6 +1325,7 @@ const handlers = {
   },
   blockedHit: (m) => blockedHit(m.url),
   allowOnce: (m, sender) => allowOnce(m.url, sender.tab.id),
+  checkBlocked: (m, sender) => checkBlocked(m.url, sender.tab),
   returnToWork: (m, sender) => leaveTab(sender.tab.id),
   openHome: (m) => openHome(m.hash || ''),
   calConnect: (m) => connectCalendar(m.clientId),
