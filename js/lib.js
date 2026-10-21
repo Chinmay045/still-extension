@@ -50,6 +50,9 @@ export const SOUNDS = [
   { id: 'gamma', name: 'Gamma 40 Hz binaural', desc: 'Starts in the focus circle. Needs headphones', tag: 'Headphones' },
   { id: 'beta', name: 'Beta pulse music', desc: 'Soft music with a 16 Hz pulse', tag: 'Pulse' },
   { id: 'cafe', name: 'Cafe murmur', desc: 'Moderate background chatter for creative work', tag: 'Ideas' },
+  { id: 'white', name: 'White noise', desc: 'Even hiss across every pitch, masks sharp sounds', tag: 'Noise' },
+  { id: 'pink', name: 'Pink noise', desc: 'Softer than white, like steady rain', tag: 'Noise' },
+  { id: 'brown', name: 'Brown noise', desc: 'Deep and low, like a distant waterfall', tag: 'Noise' },
   { id: 'off', name: 'Silence', desc: 'No sound', tag: '' }
 ];
 

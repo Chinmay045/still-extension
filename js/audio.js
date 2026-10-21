@@ -45,7 +45,9 @@ export class SoundEngine {
       let last = 0, b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0;
       for (let i = 0; i < len; i++) {
         const w = Math.random() * 2 - 1;
-        if (kind === 'brown') {
+        if (kind === 'white') {
+          data[i] = w;
+        } else if (kind === 'brown') {
           last = (last + 0.02 * w) / 1.02;
           data[i] = last * 3.5;
         } else {
@@ -127,6 +129,13 @@ export class SoundEngine {
     bus.connect(this.master);
     this.bus = bus;
 
+    // Plain noise colours, levelled so switching between them doesn't jump in loudness.
+    const NOISE = { white: 0.3, pink: 1.05, brown: 0.95 };
+    if (id in NOISE) {
+      const g = ctx.createGain(); g.gain.value = NOISE[id]; g.connect(bus);
+      this.loopNoise(id, g);
+      return;
+    }
     if (id === 'ambient') this.pad(bus, 0);
     else if (id === 'beta') this.pad(bus, 16);
     else if (id === 'gamma') {
