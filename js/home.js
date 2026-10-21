@@ -1,7 +1,7 @@
 import { attachSuggest } from './site-suggest.js';
 import { GOOGLE_CLIENT_ID, WALLET_API, WALLET_ENABLED, PLEDGES, CHARITIES, rupees, pledgeArmed, getAll, patch, send, esc, stillify, fmtWhen, fmtTime, ageDays, normalizeDomain, reducedMotion, KINDS, SOUNDS, THEMES } from './lib.js';
 import { mountVolume } from './volume.js';
-import { SCORING, summarize, encouragement, localOffset } from './progress.js';
+import { SCORING, summarize, encouragement, localOffset, dayKey, dayNumber, keyFromNumber } from './progress.js';
 import { mountSession } from './session-ui.js';
 import { SoundEngine } from './audio.js';
 
@@ -784,57 +784,217 @@ function renderSummary() {
 
 const WEEKDAY = (key) => new Date(key + 'T12:00:00Z').toLocaleDateString([], { weekday: 'short', timeZone: 'UTC' });
 const LONGDAY = (key) => new Date(key + 'T12:00:00Z').toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric', timeZone: 'UTC' });
+const plural = (n, one, many) => n + ' ' + (n === 1 ? one : many || one + 's');
+const DAYPARTS = [
+  { name: 'Morning', range: '5 am to 12 pm', from: 5, to: 12 },
+  { name: 'Afternoon', range: '12 pm to 5 pm', from: 12, to: 17 },
+  { name: 'Evening', range: '5 pm to 9 pm', from: 17, to: 21 },
+  { name: 'Night', range: '9 pm to 5 am', from: 21, to: 29 }
+];
+
+function fmtMin(m) {
+  if (m < 60) return { n: m, u: 'min' };
+  const h = m / 60;
+  return { n: h >= 10 ? Math.round(h) : Math.round(h * 10) / 10, u: h === 1 ? 'hr' : 'hrs' };
+}
+
+// Everything the Insights page shows, from history (every session that ended),
+// progress (completed days) and the bucket. Pure reads; nothing here writes.
+function insightData() {
+  const now = Date.now();
+  const offset = localOffset(now);
+  const pr = summarize(state.progress, now, offset);
+  const hist = state.history || [];
+  const focus = hist.filter((h) => h.kind !== 'calendar' && h.reason !== 'calendar');
+  const completed = focus.filter((h) => h.reason === 'timeup');
+  const early = focus.filter((h) => h.reason !== 'timeup');
+  const totalMin = hist.reduce((n, h) => n + (h.minutesFocused || 0), 0);
+  const avgMin = completed.length ? Math.round(completed.reduce((n, h) => n + (h.minutesFocused || 0), 0) / completed.length) : 0;
+  const impulses = hist.reduce((n, h) => n + (h.impulses || 0), 0);
+  const overrides = hist.reduce((n, h) => n + (h.overrides || 0), 0);
+
+  const days = (state.progress && state.progress.days) || {};
+  const today = dayNumber(dayKey(now, offset));
+  let lastWeek = 0;
+  for (let n = today - 13; n <= today - 7; n += 1) lastWeek += (days[keyFromNumber(n)] || { minutes: 0 }).minutes;
+  const fortnight = [];
+  for (let n = today - 13; n <= today; n += 1) {
+    const k = keyFromNumber(n);
+    fortnight.push({ key: k, on: !!(days[k] && days[k].points > 0), today: n === today });
+  }
+
+  const parts = DAYPARTS.map((p) => ({ ...p, minutes: 0 }));
+  for (const h of hist) {
+    if (!h.minutesFocused || !h.endedAt) continue;
+    const start = new Date(h.endedAt - h.minutesFocused * 60000);
+    let hr = start.getHours();
+    if (hr < 5) hr += 24;
+    const part = parts.find((p) => hr >= p.from && hr < p.to);
+    if (part) part.minutes += h.minutesFocused;
+  }
+
+  return {
+    pr, completed: completed.length, early: early.length, sessions: focus.length,
+    calendar: hist.length - focus.length, totalMin, avgMin, impulses, overrides,
+    lastWeek, fortnight, parts, parked: (state.parked || []).length,
+    recent: hist.slice(-4).reverse()
+  };
+}
+
+function donut(done, early) {
+  const total = done + early;
+  const r = 15.9155; // circumference 100
+  if (!total) return `<svg viewBox="0 0 40 40" class="donut" aria-hidden="true"><circle cx="20" cy="20" r="${r}" class="dn-track"/></svg>`;
+  const gap = done && early ? 1.6 : 0;
+  const a = (done / total) * 100;
+  const seg = (len, off, cls, tip) => len > 0
+    ? `<circle cx="20" cy="20" r="${r}" class="${cls}" stroke-dasharray="${Math.max(0.01, len - gap)} ${100 - Math.max(0.01, len - gap)}" stroke-dashoffset="${25 - off}" data-tip="${esc(tip)}"/>` : '';
+  return `<svg viewBox="0 0 40 40" class="donut" aria-hidden="true"><circle cx="20" cy="20" r="${r}" class="dn-track"/>
+    ${seg(a, gap / 2, 'dn-done', plural(done, 'session') + ' completed')}${seg(100 - a, a + gap / 2, 'dn-early', plural(early, 'session') + ' ended early')}</svg>`;
+}
+
+function gauge(pct) {
+  const p = Math.max(0, Math.min(100, pct));
+  return `<svg viewBox="0 0 120 66" class="gauge" aria-hidden="true">
+    <path d="M10 60 A50 50 0 0 1 110 60" pathLength="100" class="gg-track"/>
+    ${p ? `<path d="M10 60 A50 50 0 0 1 110 60" pathLength="100" class="gg-fill" stroke-dasharray="${p} 100"/>` : ''}
+  </svg>`;
+}
 
 function renderInsights() {
-  const pr = progressNow();
+  const d = insightData();
+  const pr = d.pr;
   $('ins-line').textContent = encouragement(pr);
-  const days = (n) => n + (n === 1 ? ' day' : ' days');
-  const max = Math.max(SCORING.minEligibleMinutes * 3, ...pr.week.map((d) => d.minutes));
-  const bars = pr.week.map((d) => {
-    const h = d.minutes ? Math.max(6, Math.round((d.minutes / max) * 100)) : 0;
-    const tip = LONGDAY(d.key) + ': ' + (d.minutes ? d.minutes + ' min, ' + d.points + ' points, ' + d.sessions + (d.sessions === 1 ? ' session' : ' sessions') : 'no focus sessions');
-    return `<div class="wk-col${d.today ? ' today' : ''}" tabindex="0" data-tip="${esc(tip)}" aria-label="${esc(tip)}">
-      <div class="wk-plot">${h ? `<div class="wk-bar" style="height:${h}%"></div>` : '<div class="wk-zero"></div>'}</div>
-      <span class="wk-day">${d.today ? 'Today' : WEEKDAY(d.key)}</span>
+
+  // Streak: the dark hero tile.
+  const dot = (f) => {
+    const tip = LONGDAY(f.key) + (f.on ? ': focused' : ': no completed session');
+    return `<span class="sd${f.on ? ' on' : ''}${f.today ? ' today' : ''}" data-tip="${esc(tip)}" aria-label="${esc(tip)}"></span>`;
+  };
+  const letters = d.fortnight.slice(7).map((f) => `<span class="sd-l">${WEEKDAY(f.key).slice(0, 1)}</span>`).join('');
+  const dots = `<span class="sd-r">Last week</span>${d.fortnight.slice(0, 7).map(dot).join('')}<span class="sd-r">This week</span>${d.fortnight.slice(7).map(dot).join('')}<span></span>${letters}`;
+  const streak = `<article class="tile-b b-streak">
+    <div class="b-label">Current streak</div>
+    <div class="b-hero"><span class="b-big">${pr.currentStreak}</span><span class="b-unit">${pr.currentStreak === 1 ? 'day' : 'days'}</span></div>
+    <p class="b-note">${pr.doneToday ? 'Today already counts.' : pr.currentStreak ? 'One session today keeps it going.' : 'Your next completed session starts one.'}</p>
+    <div class="b-dots" role="img" aria-label="Focus days in the last 14 days: ${d.fortnight.filter((f) => f.on).length}">${dots}</div>
+    <div class="b-pair">
+      <div><b>${pr.longestStreak}</b><span>Best streak</span></div>
+      <div><b>${pr.focusDays}</b><span>Focus days</span></div>
+    </div>
+  </article>`;
+
+  // Sessions: completed vs ended early.
+  const rate = d.sessions ? Math.round((d.completed / d.sessions) * 100) : 0;
+  const sessions = `<article class="tile-b b-sessions">
+    <div class="b-label">Sessions</div>
+    <div class="b-sess">
+      <div class="b-donut">${donut(d.completed, d.early)}<div class="b-donut-c"><b>${d.sessions ? rate + '%' : '0'}</b><span>${d.sessions ? 'completed' : 'sessions'}</span></div></div>
+      <div class="b-legend">
+        <div class="b-total"><b>${d.sessions}</b><span>${d.sessions === 1 ? 'session started' : 'sessions started'}</span></div>
+        <div class="lg"><i class="lg-done"></i><span>Completed</span><b>${d.completed}</b></div>
+        <div class="lg"><i class="lg-early"></i><span>Ended early</span><b>${d.early}</b></div>
+        ${d.calendar ? `<div class="lg"><i class="lg-cal"></i><span>Calendar blocks</span><b>${d.calendar}</b></div>` : ''}
+      </div>
+    </div>
+  </article>`;
+
+  // Four small numbers.
+  const t = fmtMin(d.totalMin);
+  const kpi = (val, unit, label, cls) => `<div class="tile-b b-kpi${cls ? ' ' + cls : ''}"><div class="b-kv"><b>${val}</b>${unit ? `<span>${unit}</span>` : ''}</div><div class="b-label">${label}</div></div>`;
+  const kpis = `<div class="b-kpis">
+    ${kpi(pr.totalPoints, 'pts', 'Total points', 'pts')}
+    ${kpi(t.n, t.u, 'Time focused')}
+    ${kpi(d.avgMin, 'min', 'Average session')}
+    ${kpi(d.parked, '', d.parked === 1 ? 'Thought in bucket' : 'Thoughts in bucket')}
+  </div>`;
+
+  // This week: minutes per day.
+  const max = Math.max(SCORING.minEligibleMinutes * 3, ...pr.week.map((w) => w.minutes));
+  const peak = Math.max(...pr.week.map((w) => w.minutes));
+  const bars = pr.week.map((w) => {
+    const h = w.minutes ? Math.max(4, Math.round((w.minutes / max) * 100)) : 0;
+    const tip = LONGDAY(w.key) + ': ' + (w.minutes ? w.minutes + ' min, ' + plural(w.sessions, 'session') : 'no completed sessions');
+    const label = w.minutes && (w.today || w.minutes === peak) ? `<span class="wk-val">${w.minutes}</span>` : '';
+    return `<div class="wk-col${w.today ? ' today' : ''}" tabindex="0" data-tip="${esc(tip)}" aria-label="${esc(tip)}">
+      <div class="wk-plot">${h ? `<div class="wk-bar" style="height:${h}%">${label}</div>` : '<div class="wk-zero"></div>'}</div>
+      <span class="wk-day">${w.today ? 'Today' : WEEKDAY(w.key)}</span>
     </div>`;
   }).join('');
-  const table = `<table class="sr-only"><caption>Focus minutes for the last 7 days</caption><thead><tr><th>Day</th><th>Minutes</th><th>Points</th></tr></thead><tbody>${pr.week.map((d) => `<tr><td>${LONGDAY(d.key)}</td><td>${d.minutes}</td><td>${d.points}</td></tr>`).join('')}</tbody></table>`;
-  const weekLine = pr.weekMinutes
-    ? pr.weekMinutes + ' focused minutes across ' + days(pr.weekDays) + ' in the last 7 days.'
-    : 'No completed sessions in the last 7 days yet.';
-  $('insights').innerHTML =
-    group('Your progress',
-      row('Total points', 'One point per focused minute', `<span class="dash-val">${pr.totalPoints}</span>`) +
-      row('Current streak', pr.doneToday ? 'Today already counts.' : pr.currentStreak ? 'Finish a session today to keep it going.' : 'Starts with your next completed session.', `<span class="dash-val">${days(pr.currentStreak)}</span>`) +
-      row('Longest streak', 'Your best run of days in a row', `<span class="dash-val">${days(pr.longestStreak)}</span>`) +
-      row('Focus days', 'Days with at least one completed session', `<span class="dash-val">${pr.focusDays}</span>`)) +
-    `<section class="dash-group"><h2 class="h2">This week</h2><div class="card pad wk">
-      <p class="muted small wk-line">${weekLine}</p>
-      <div class="wk-chart" role="img" aria-label="Focus minutes per day for the last 7 days">${bars}</div>
-      <div class="wk-tip" id="wk-tip" hidden></div>
-      ${table}
-    </div></section>` +
-    group('How points work',
-      row('1 point per minute', 'Earned when a session’s timer runs out. A 15-minute session earns 15.', '') +
-      row(SCORING.minEligibleMinutes + ' minutes or more', 'Shorter sessions are welcome but don’t earn points or count toward a streak.', '') +
-      row('Nothing is taken away', 'Ending early earns nothing for that session. Points you have stay yours.', '') +
-      row('Streaks count calendar days', 'A session counts for the day its timer started, in your local time.', ''));
+  let delta = '';
+  if (d.lastWeek && pr.weekMinutes) {
+    const ch = Math.round(((pr.weekMinutes - d.lastWeek) / d.lastWeek) * 100);
+    delta = `<span class="chip ${ch >= 0 ? 'up' : 'down'}">${ch >= 0 ? '↑' : '↓'} ${Math.abs(ch)}% vs last week</span>`;
+  } else if (pr.weekMinutes) delta = '<span class="chip">Your first tracked week</span>';
+  const table = `<table class="sr-only"><caption>Focus minutes for the last 7 days</caption><thead><tr><th>Day</th><th>Minutes</th><th>Sessions</th></tr></thead><tbody>${pr.week.map((w) => `<tr><td>${LONGDAY(w.key)}</td><td>${w.minutes}</td><td>${w.sessions}</td></tr>`).join('')}</tbody></table>`;
+  const week = `<article class="tile-b b-week">
+    <div class="b-head"><div><div class="b-label">This week</div><div class="b-kv"><b>${pr.weekMinutes}</b><span>min across ${plural(pr.weekDays, 'day')}</span></div></div>${delta}</div>
+    <div class="wk-chart" role="img" aria-label="Focus minutes per day for the last 7 days">${bars}</div>
+    ${table}
+  </article>`;
+
+  // Distractions: how often a blocked site was tried, and how often you let it through.
+  const held = d.impulses ? Math.round(((d.impulses - Math.min(d.overrides, d.impulses)) / d.impulses) * 100) : 0;
+  const distract = `<article class="tile-b b-distract">
+    <div class="b-label">Distractions held off</div>
+    <div class="b-dis">
+      <div class="b-gauge">${gauge(d.impulses ? held : 0)}<div class="b-gauge-c"><b>${d.impulses ? held + '%' : '–'}</b></div></div>
+      <div class="b-legend">
+        <div class="lg"><span>Blocked visits</span><b>${d.impulses}</b></div>
+        <div class="lg"><span>Let through</span><b>${d.overrides}</b></div>
+        <p class="b-sub">${d.impulses ? 'Times you went back to work instead.' : 'Shows up once a blocked site is tried.'}</p>
+      </div>
+    </div>
+  </article>`;
+
+  // When you focus.
+  const best = d.parts.reduce((a, b) => (b.minutes > a.minutes ? b : a));
+  const pmax = Math.max(1, best.minutes);
+  const partRows = d.parts.map((p) => {
+    const tip = p.name + ' (' + p.range + '): ' + p.minutes + ' min';
+    return `<div class="tod${best.minutes && p === best ? ' best' : ''}" data-tip="${esc(tip)}" aria-label="${esc(tip)}"><span>${p.name}</span>
+      <div class="tod-track"><div class="tod-bar" style="width:${p.minutes ? Math.max(3, Math.round((p.minutes / pmax) * 100)) : 0}%"></div></div><b>${p.minutes}</b></div>`;
+  }).join('');
+  const tod = `<article class="tile-b b-tod">
+    <div class="b-head"><div class="b-label">When you focus</div>${best.minutes ? `<span class="chip best">Best: ${best.name}</span>` : ''}</div>
+    <div class="tods">${partRows}</div>
+  </article>`;
+
+  // Recent sessions.
+  const status = (h) => h.kind === 'calendar' || h.reason === 'calendar'
+    ? { cls: 'cal', label: 'Calendar block', path: 'M3 4.5h6v5H3zM3 6.5h6' }
+    : h.reason === 'timeup' ? { cls: 'done', label: 'Completed', path: 'M2.5 6.2 5 8.6l4.5-5' }
+    : { cls: 'early', label: 'Ended early', path: 'M3.5 6h5' };
+  const recent = `<article class="tile-b b-recent">
+    <div class="b-head"><div class="b-label">Recent sessions</div><div class="rec-key"><span class="st done"><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 6.2 5 8.6l4.5-5"/></svg></span>Done <span class="st early"><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3.5 6h5"/></svg></span>Early</div></div>
+    ${d.recent.length ? `<ul class="rec">${d.recent.map((h) => {
+      const st = status(h);
+      const tip = (h.task || 'Focus session') + ': ' + st.label + ', ' + (h.minutesFocused || 0) + ' min, ' + fmtWhen(h.endedAt);
+      return `<li data-tip="${esc(tip)}" aria-label="${esc(tip)}"><span class="st ${st.cls}"><svg viewBox="0 0 12 12" aria-hidden="true"><path d="${st.path}"/></svg></span><b>${esc(h.task || 'Focus session')}</b><span class="rec-m">${h.minutesFocused || 0} min</span></li>`;
+    }).join('')}</ul>`
+      : '<p class="b-empty">Your sessions will show up here.</p>'}
+  </article>`;
+
+  $('insights').innerHTML = `<div class="bento">${streak}${sessions}${kpis}${week}${distract}${tod}${recent}</div>`;
 }
 
-$('insights').addEventListener('pointerover', (e) => showTip(e.target.closest('.wk-col')));
-$('insights').addEventListener('focusin', (e) => showTip(e.target.closest('.wk-col')));
+const tipEl = document.createElement('div');
+tipEl.className = 'b-tip';
+tipEl.hidden = true;
+document.body.appendChild(tipEl);
+function showTip(el) {
+  if (!el) { tipEl.hidden = true; return; }
+  tipEl.textContent = el.dataset.tip;
+  tipEl.hidden = false;
+  const r = el.getBoundingClientRect();
+  const w = tipEl.offsetWidth, h = tipEl.offsetHeight;
+  tipEl.style.left = Math.min(Math.max(8, r.left + r.width / 2 - w / 2), innerWidth - w - 8) + 'px';
+  tipEl.style.top = (r.top - h - 8 < 8 ? r.bottom + 8 : r.top - h - 8) + 'px';
+}
+$('insights').addEventListener('pointerover', (e) => showTip(e.target.closest('[data-tip]')));
+$('insights').addEventListener('focusin', (e) => showTip(e.target.closest('[data-tip]')));
 $('insights').addEventListener('pointerleave', () => showTip(null));
 $('insights').addEventListener('focusout', () => showTip(null));
-function showTip(col) {
-  const tip = $('wk-tip');
-  if (!tip) return;
-  if (!col) { tip.hidden = true; return; }
-  tip.textContent = col.dataset.tip;
-  tip.hidden = false;
-  const box = col.parentElement.getBoundingClientRect();
-  const c = col.getBoundingClientRect();
-  tip.style.left = Math.min(Math.max(0, c.left - box.left + c.width / 2 - tip.offsetWidth / 2), box.width - tip.offsetWidth) + 'px';
-}
 
 // ---------- live updates ----------
 
@@ -854,7 +1014,7 @@ chrome.storage.onChanged.addListener(async (changes, area) => {
   if ((changes.calendar || changes.settings || changes.block || changes.wallet || changes.calEvents || changes.pledges) && (v === 'settings' || v === 'block')) renderSettings();
   if ((changes.calendar || changes.calEvents || changes.settings) && v === 'setup' && !state.session) renderSetup();
   if ((changes.lastSummary || changes.progress) && v === 'summary') renderSummary();
-  if (changes.progress && v === 'insights') renderInsights();
+  if ((changes.progress || changes.history || changes.parked) && v === 'insights') renderInsights();
   if (changes.prefs && v === 'setup' && !state.session) renderSetup();
 });
 
