@@ -27,7 +27,8 @@ async function init() {
     $('open').hidden = true;
   }
 
-  const res = url ? await send('blockedHit', { url }) : null;
+  const swept = new URLSearchParams(location.search).has('swept');
+  const res = url && !swept ? await send('blockedHit', { url }) : null;
   const n = res && res.impulses ? res.impulses : block.impulses;
   $('count').textContent = n + (block.eventId === 'manual' ? ' blocked so far' : ' blocked during this task');
 

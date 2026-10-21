@@ -77,8 +77,13 @@ chrome.storage.onChanged.addListener(async (changes, area) => {
     // live pledge keeps blocking until it ends: turning blocking off is not a way out.
     const { block, settings } = await getAll();
     if (block && !blockAllowed(block, settings) && !pledgeArmed(block)) await endBlock();
-    else if (block) await applyBlocking(blockSites(block, settings));
-    else if (settings.calendarBlock) await checkBlockNow();
+    else if (block) {
+      await applyBlocking(blockSites(block, settings));
+      // A site added while blocking is on closes in tabs that already have it open.
+      const before = (changes.settings.oldValue && changes.settings.oldValue.sites) || [];
+      const added = settings.sites.filter((d) => !before.includes(d));
+      if (added.length) await sweepTabs(added);
+    } else if (settings.calendarBlock) await checkBlockNow();
   }
 });
 
@@ -113,6 +118,26 @@ async function applyBlocking(sites) {
     }
   }));
   if (rules.length) await chrome.declarativeNetRequest.updateDynamicRules({ addRules: rules });
+}
+
+// Tabs already open on a blocked site get the block page too, so blocking covers
+// what was open before it started. The block page offers the site back once it ends.
+async function sweepTabs(sites) {
+  const domains = sites.map(normalizeDomain).filter(Boolean);
+  if (!domains.length) return;
+  const base = chrome.runtime.getURL('blocked.html');
+  const tabs = await chrome.tabs.query({});
+  for (const t of tabs) {
+    let host = '';
+    try {
+      const u = new URL(t.url || t.pendingUrl || '');
+      if (!/^https?:$/.test(u.protocol)) continue;
+      host = u.hostname.toLowerCase();
+    } catch (e) { continue; }
+    if (!domains.some((d) => host === d || host.endsWith('.' + d))) continue;
+    // ?swept so the block page doesn't count it as you reaching for the site.
+    try { await chrome.tabs.update(t.id, { url: base + '?swept=1#' + (t.url || t.pendingUrl) }); } catch (e) { /* tab closed meanwhile */ }
+  }
 }
 
 async function clearBlocking() {
@@ -599,6 +624,7 @@ async function startBlock(e) {
   };
   await chrome.storage.local.set({ block: next });
   await applyBlocking(settings.sites);
+  await sweepTabs(settings.sites);
   armBlockEnd(next.end);
   const id = 'block|' + Date.now();
   const stake = next.pledge ? ' ' + rupees(next.pledge * 100) + ' is on the line.' : next.pledgeShort ? ' Your wallet is too low for the ' + rupees(next.pledgeShort * 100) + ' pledge, so none is set.' : '';
