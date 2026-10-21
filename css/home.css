@@ -315,3 +315,26 @@ main:focus { outline: none; }
 .wk-col.today .wk-day { color: var(--ink); font-weight: 600; }
 .wk-tip { position: absolute; top: 44px; padding: 8px 12px; border-radius: 10px; background: var(--dark); color: #FFFFFF; font-size: 12.5px; white-space: nowrap; pointer-events: none; z-index: 2; }
 #insights { display: flex; flex-direction: column; gap: 36px; }
+
+/* Focus page: one task, one length, one button. Everything else is tucked away. */
+.focus-page .stack-lg { gap: 22px; }
+.focus-page #start { align-self: flex-start; min-width: 220px; }
+.cal-offer {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 16px 14px 18px;
+  border-radius: 18px; background: var(--lav); border: 1px solid var(--lav-border);
+}
+.cal-offer > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.cal-offer b { font-size: 15.5px; font-weight: 600; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cal-when { font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--v4); }
+.customize { border-top: 1px solid var(--g2); padding-top: 18px; margin-top: 6px; }
+.customize summary {
+  display: flex; align-items: center; gap: 10px; cursor: pointer; list-style: none; width: fit-content;
+  font-size: 14px; font-weight: 600; color: var(--g4); border-radius: 8px;
+}
+.customize summary::-webkit-details-marker { display: none; }
+.customize summary::before { content: ""; width: 7px; height: 7px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(-45deg); transition: transform .2s; margin-right: 2px; }
+.customize[open] summary::before { transform: rotate(45deg); }
+.customize summary:hover { color: var(--v3); }
+.customize-body { margin-top: 20px; }
+.nav-links a.nav-gear { width: 36px; padding: 0; justify-content: center; }
+.nav-gear svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }

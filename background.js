@@ -28,9 +28,7 @@ chrome.runtime.onInstalled.addListener(async (details) => {
     all.settings.bucketV2 = true;
   }
   if (!all.prefs.lenV2) {
-    // The presets moved from 25/50 to 10/15 minutes; old picks move to the new default.
-    if ([25, 50].includes(all.prefs.plannedMin)) all.prefs.plannedMin = 10;
-    if ([25, 50, 90].includes(all.prefs.customMin)) all.prefs.customMin = 20;
+    // Presets are 25/50 again; the length people last used is kept as it is.
     all.prefs.lenV2 = true;
   }
   await chrome.storage.local.set({ settings: all.settings, prefs: all.prefs, parked: all.parked });

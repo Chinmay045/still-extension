@@ -15,16 +15,16 @@ async function render() {
   else {
     if (!$('task').value) $('task').value = prefs.task || '';
     const sound = SOUNDS.find((s) => s.id === prefs.sound);
-    $('idle-meta').textContent = prefs.plannedMin + ' min · ' + (sound ? sound.name : 'Silence') + ' · nothing blocked until your calendar task starts';
+    const n = settings.sessionBlock ? settings.sites.length : 0;
+    $('idle-meta').textContent = prefs.plannedMin + ' min · ' + (sound && sound.id !== 'off' ? sound.name : 'No sound') + (n ? ' · ' + n + (n === 1 ? ' site' : ' sites') + ' blocked' : '');
   }
 }
 
 async function start() {
   const { prefs, settings } = await getAll();
   const task = $('task').value.trim();
-  if (!task) { $('task').focus(); $('task').placeholder = 'Name one task first'; return; }
   $('start').disabled = true;
-  await patch('prefs', { task });
+  if (task) await patch('prefs', { task });
   await send('startSession', { config: { task, plannedMin: prefs.plannedMin, theme: prefs.theme, sound: prefs.sound, volume: prefs.volume, blocked: settings.sites, fromCalendar: !!prefs.fromCalendar } });
   window.close();
 }

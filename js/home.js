@@ -6,7 +6,8 @@ import { mountSession } from './session-ui.js';
 import { SoundEngine } from './audio.js';
 
 const $ = (id) => document.getElementById(id);
-const VIEWS = ['home', 'setup', 'bucket', 'insights', 'settings', 'summary'];
+const VIEWS = ['home', 'setup', 'block', 'bucket', 'insights', 'settings', 'summary'];
+const PRESETS = [25, 50];
 let state = await getAll();
 let reviewed = 0;
 
@@ -37,7 +38,7 @@ function renderView(name) {
   if (name === 'home') renderHome();
   if (name === 'setup') renderSetup();
   if (name === 'bucket') renderBucket();
-  if (name === 'settings') renderSettings();
+  if (name === 'settings' || name === 'block') renderSettings();
   if (name === 'insights') renderInsights();
   if (name === 'summary') renderSummary();
 }
@@ -237,6 +238,8 @@ function renderSetup() {
   const { session, prefs, settings } = state;
   $('setup-running').hidden = !session;
   $('setup-form').hidden = !!session;
+  $('setup-h1').textContent = session ? 'You are focusing' : 'What will you focus on?';
+  $('setup-sub').hidden = !!session;
   if (session) {
     if (!sessionUi) sessionUi = mountSession($('setup-sess'));
     sessionUi.update(session);
@@ -245,8 +248,9 @@ function renderSetup() {
   const task = $('task');
   if (document.activeElement !== task) task.value = prefs.task || '';
   $('from-cal').hidden = !prefs.fromCalendar;
+  renderCalOffer();
 
-  const isCustom = ![10, 15].includes(prefs.plannedMin);
+  const isCustom = !PRESETS.includes(prefs.plannedMin);
   document.querySelectorAll('[data-len]').forEach((b) => {
     const on = b.dataset.len === 'custom' ? isCustom : Number(b.dataset.len) === prefs.plannedMin;
     b.setAttribute('aria-checked', String(on));
@@ -281,9 +285,41 @@ function renderSetup() {
   } else volumeUi.set(prefs.volume);
   previewEngine.setVolume(prefs.volume);
 
-  renderChips($('setup-sites'), settings.sites);
-  $('start-note').textContent = settings.autoCircle ? 'The timer starts right away and the focus circle opens with it.' : 'The timer starts right away.';
+  const theme = THEMES.find((t) => t.id === prefs.theme) || THEMES[0];
+  const sound = SOUNDS.find((s) => s.id === prefs.sound) || SOUNDS[0];
+  $('customize-sum').textContent = theme.name + ' · ' + (sound.id === 'off' ? 'No sound' : sound.name);
+  $('start-note').textContent = settings.sessionBlock && settings.sites.length ? 'Blocked sites close until the timer ends.' : '';
 }
+
+// A calendar task that is running or starts within the hour is offered as the task.
+function calOffer() {
+  const { calendar, calEvents, prefs } = state;
+  if (!calendar.connected) return null;
+  const now = Date.now();
+  const e = Object.values(calEvents || {})
+    .filter((x) => x.end > now && x.start <= now + 60 * 60000)
+    .sort((a, b) => a.start - b.start)[0];
+  if (!e || (prefs.task || '').trim() === e.title) return null;
+  return e;
+}
+
+function renderCalOffer() {
+  const e = calOffer();
+  $('cal-offer').hidden = !e;
+  if (!e) return;
+  const now = Date.now();
+  $('cal-offer-when').textContent = e.start <= now ? 'On your calendar now' : 'On your calendar at ' + fmtTime(e.start);
+  $('cal-offer-title').textContent = e.title;
+}
+
+$('cal-offer-use').addEventListener('click', async () => {
+  const e = calOffer();
+  if (!e) return;
+  state.prefs = await patch('prefs', { task: e.title, fromCalendar: true });
+  $('task').value = e.title;
+  renderSetup();
+  $('start').focus();
+});
 
 function renderChips(el, sites) {
   el.innerHTML = sites.length
@@ -325,7 +361,7 @@ $('len-seg').addEventListener('click', (e) => {
   const b = e.target.closest('[data-len]');
   if (!b) return;
   if (b.dataset.len === 'custom') {
-    const c = [10, 15].includes(state.prefs.customMin) ? 20 : (state.prefs.customMin || 20);
+    const c = PRESETS.includes(state.prefs.customMin) ? 20 : (state.prefs.customMin || 20);
     setPrefs({ plannedMin: c, customMin: c });
   } else setPrefs({ plannedMin: Number(b.dataset.len) });
 });
@@ -368,33 +404,27 @@ async function addSite(input) {
 }
 async function addDomain(d) {
   if (!state.settings.sites.includes(d)) state.settings = await patch('settings', { sites: state.settings.sites.concat([d]) });
-  renderSetup();
   renderSettings();
 }
 async function removeSite(d) {
   state.settings = await patch('settings', { sites: state.settings.sites.filter((s) => s !== d) });
-  renderSetup();
   renderSettings();
 }
-[['setup-site-input', 'setup-site-add'], ['set-site-input', 'set-site-add']].forEach(([inp, btn]) => {
+[['set-site-input', 'set-site-add']].forEach(([inp, btn]) => {
   // Registered first so Enter on a highlighted suggestion adds that one.
   attachSuggest($(inp), () => state.settings.sites, addDomain);
   $(btn).addEventListener('click', () => addSite($(inp)));
   $(inp).addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); addSite($(inp)); } });
 });
-[$('setup-sites'), $('set-sites')].forEach((el) => el.addEventListener('click', (e) => {
+[$('set-sites')].forEach((el) => el.addEventListener('click', (e) => {
   const b = e.target.closest('[data-remove]');
   if (b) removeSite(b.dataset.remove);
 }));
 
 $('setup-form').addEventListener('submit', async (e) => {
   e.preventDefault();
+  // No task name is fine: the session is called "One focused block".
   const task = $('task').value.trim();
-  if (!task) {
-    $('task').focus();
-    $('start-note').textContent = 'Name the one thing first.';
-    return;
-  }
   stopPreview();
   $('start').disabled = true;
   const p = state.prefs;
@@ -819,7 +849,8 @@ chrome.storage.onChanged.addListener(async (changes, area) => {
     }
   }
   if (changes.parked && v === 'bucket') renderBucket();
-  if ((changes.calendar || changes.settings || changes.block || changes.wallet || changes.calEvents || changes.pledges) && v === 'settings') renderSettings();
+  if ((changes.calendar || changes.settings || changes.block || changes.wallet || changes.calEvents || changes.pledges) && (v === 'settings' || v === 'block')) renderSettings();
+  if ((changes.calendar || changes.calEvents || changes.settings) && v === 'setup' && !state.session) renderSetup();
   if ((changes.lastSummary || changes.progress) && v === 'summary') renderSummary();
   if (changes.progress && v === 'insights') renderInsights();
   if (changes.prefs && v === 'setup' && !state.session) renderSetup();
