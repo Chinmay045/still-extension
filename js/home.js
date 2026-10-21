@@ -18,8 +18,10 @@ function route() {
     if (a.dataset.nav === name) a.setAttribute('aria-current', 'page');
     else a.removeAttribute('aria-current');
   });
-  document.title = name === 'home' ? 'Still' : 'Still · ' + name[0].toUpperCase() + name.slice(1);
-  // The tour shows on first open; every open after that lands on Setup.
+  // The setup view is called Focus everywhere people see it.
+  const label = name === 'setup' ? 'Focus' : name[0].toUpperCase() + name.slice(1);
+  document.title = name === 'home' ? 'Still' : 'Still · ' + label;
+  // The tour shows on first open; every open after that lands on Focus (#setup).
   if (name === 'home' && !state.seenWelcome) chrome.storage.local.set({ seenWelcome: true });
   if (name !== 'setup') stopPreview();
   if (name === 'bucket') reviewed = 0;
