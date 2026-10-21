@@ -18,14 +18,10 @@
   .tops { display: flex; gap: 8px; }
   .stale { align-self: center; margin: 0 24px; padding: 10px 18px; border-radius: 14px; background: #2A1458; color: #FFFFFF; font-size: 14px; text-align: center; }
   .stale[hidden] { display: none; }
-  .dock { position: relative; z-index: 3; }
-  .thm { width: 34px; height: 34px; padding: 0; border-radius: 50%; border: 0; background: #000; box-shadow: 0 0 0 1px rgba(255, 255, 255, .2); }
-  .thm img { width: 100%; height: 100%; border-radius: 50%; display: block; }
-  .thm[aria-checked="true"] { box-shadow: 0 0 0 2px #000, 0 0 0 4px #FFFFFF; }
   .wrap { flex: 1; min-height: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px; padding: 0 24px; text-align: center; }
-  .wrap { gap: 12px; overflow: hidden; padding-top: 4px; justify-content: center; }
+  .wrap { gap: 12px; overflow: hidden; padding: 4px 24px 28px; justify-content: center; }
   /* Grows into free height, but no taller than the largest circle so big screens center the group. */
-  .stage { margin: 6px 0; max-height: 500px; }
+  .stage { margin: 6px 0; }
   /* Hierarchy: task, then time left, then the circle; everything else stays quiet. */
   .head { display: flex; flex-direction: column; align-items: center; gap: 6px; max-width: min(640px, 100%); }
   .task {
@@ -43,7 +39,7 @@
      The 4% inset leaves room for the breathing scale (up to 1.03) without clipping. */
   .stage { flex: 1 1 0; min-height: 0; align-self: stretch; container-type: size; display: grid; place-items: center; }
   .circle {
-    --size: min(100cqh, 96cqw, 480px);
+    --size: min(100cqh, 96cqw);
     width: var(--size); height: var(--size); border: 0; padding: 0; border-radius: 50%; flex: none;
     background: transparent; animation: breathe 9s ease-in-out infinite; transition: opacity .6s;
   }
@@ -55,27 +51,6 @@
   .quiet { text-align: center; max-width: 720px; }
   .meta:not(:empty) + .meta::before { content: " · "; }
 
-  .dock {
-    flex: none; align-self: center; margin: 12px 24px 20px; padding: 12px 18px; max-width: calc(100% - 48px);
-    display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 14px 26px;
-    border-radius: 22px; background: #121016; border: 1px solid rgba(255, 255, 255, .1);
-  }
-  .grp { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: center; }
-  .lbl { font-size: 11px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: rgba(255, 255, 255, .45); }
-  .sep { width: 1px; align-self: stretch; background: rgba(255, 255, 255, .1); }
-  .step {
-    width: 34px; height: 34px; border-radius: 50%; border: 1px solid rgba(255, 255, 255, .2);
-    background: transparent; color: #FFFFFF; font-size: 17px; line-height: 1;
-  }
-  .step:hover, .chipb:hover { background: rgba(255, 255, 255, .1); }
-  .len { font-family: 'Inter Tight', sans-serif; font-size: 20px; font-weight: 500; font-variant-numeric: tabular-nums; min-width: 108px; }
-  .chipb {
-    min-height: 32px; padding: 0 13px; border-radius: 999px; border: 1px solid rgba(255, 255, 255, .16);
-    background: transparent; color: rgba(255, 255, 255, .78); font-size: 13px; white-space: nowrap;
-  }
-  .chipb[aria-checked="true"] { background: #FFFFFF; border-color: #FFFFFF; color: #2A1458; font-weight: 600; }
-  .vol { width: 96px; accent-color: #9B4DF5; }
-  @media (max-width: 1400px) { .sep { display: none; } }
   @media (min-width: 1280px) {
     .top { position: absolute; top: 0; left: 0; right: 0; z-index: 4; pointer-events: none; }
     .top > * { pointer-events: auto; }
@@ -109,7 +84,6 @@
 <header class="top">
   <span class="eyebrow">Still · focusing</span>
   <div class="tops">
-    <button class="exit" id="back" type="button" title="Close the circle. The timer keeps running.">Back to work</button>
     <button class="exit" id="end" type="button">End focus</button>
   </div>
 </header>
@@ -127,26 +101,6 @@
   <div class="hint">Your timer is running. Breathe with the circle.</div>
   <div class="quiet">
     <span class="meta" id="meta"></span><span class="meta" id="streak"></span>
-  </div>
-</div>
-<div class="dock" role="group" aria-label="Circle controls">
-  <div class="grp">
-    <span class="lbl" id="len-l">Timer</span>
-    <button class="step" type="button" data-step="-1" aria-label="One minute less">−</button>
-    <span class="len" id="len" aria-live="polite"></span>
-    <button class="step" type="button" data-step="1" aria-label="One minute more">+</button>
-    <div class="grp" role="radiogroup" aria-labelledby="len-l" id="presets"></div>
-  </div>
-  <span class="sep" aria-hidden="true"></span>
-  <div class="grp">
-    <span class="lbl" id="circ-l">Circle</span>
-    <div class="grp" role="radiogroup" aria-labelledby="circ-l" id="themes"></div>
-  </div>
-  <span class="sep" aria-hidden="true"></span>
-  <div class="grp">
-    <span class="lbl" id="snd-l">Music</span>
-    <div class="grp" role="radiogroup" aria-labelledby="snd-l" id="sounds"></div>
-    <input class="vol" id="vol" type="range" min="0" max="100" step="1" aria-label="Volume">
   </div>
 </div>
 <script type="module" src="js/focus.js"></script>
