@@ -264,6 +264,7 @@ async function setSound(sound) {
   await patch('prefs', { sound });
   if (!session) return null;
   session.sound = sound;
+  session.muted = false; // picking a sound means you want to hear it
   await chrome.storage.local.set({ session });
   if (sound === 'off') await audio('audio-stop');
   else await audio('audio-play', { sound, volume: session.volume });
@@ -293,6 +294,17 @@ async function setTheme(theme) {
   if (!session) return null;
   session.theme = theme;
   await chrome.storage.local.set({ session });
+  return session;
+}
+
+// Mute keeps the chosen sound, so unmuting brings the same one back.
+async function setMuted(muted) {
+  const { session } = await getAll();
+  if (!session) return null;
+  session.muted = !!muted;
+  await chrome.storage.local.set({ session });
+  if (session.muted || session.sound === 'off') await audio('audio-stop');
+  else await audio('audio-play', { sound: session.sound, volume: session.volume });
   return session;
 }
 
@@ -1114,6 +1126,7 @@ const handlers = {
   startTimer: () => beginWork(),
   adjustTime: (m) => adjustTime(Number(m.deltaMin) || 0),
   setSound: (m) => setSound(m.sound),
+  setMuted: (m) => setMuted(m.muted),
   setTheme: (m) => setTheme(m.theme),
   openCircle: () => openCircle(),
   setVolume: (m) => setVolume(Number(m.volume)),

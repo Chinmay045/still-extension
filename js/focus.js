@@ -29,6 +29,12 @@ if (!session) {
   setInterval(tickClock, 1000);
 
   $('end').addEventListener('click', endFocus);
+  $('mute').addEventListener('click', async () => {
+    const next = await send('setMuted', { muted: !session.muted });
+    if (!next) return stale();
+    session = next;
+    render();
+  });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') back(); });
 }
 
@@ -47,6 +53,12 @@ function stale() {
 
 function render() {
   $('img').src = 'assets/' + session.theme + '.jpg';
+  // Nothing to mute when the session was started in silence.
+  const muted = !!session.muted;
+  $('mute').hidden = session.sound === 'off';
+  $('mute').setAttribute('aria-pressed', String(muted));
+  $('mute').title = muted ? 'Unmute music' : 'Mute music';
+  $('mute-l').textContent = muted ? 'Muted' : 'Sound on';
 }
 
 // A circle tab left open across an extension reload or update loses its link to
@@ -77,7 +89,7 @@ chrome.storage.onChanged.addListener((c) => {
   if (!c.session) return;
   if (!c.session.newValue) { if (!leaving) location.replace('home.html#summary'); return; }
   const n = c.session.newValue;
-  const changed = n.plannedMin !== session.plannedMin || n.sound !== session.sound || n.theme !== session.theme;
+  const changed = n.plannedMin !== session.plannedMin || n.sound !== session.sound || n.theme !== session.theme || !!n.muted !== !!session.muted;
   session = n;
   if (changed) render();
   tickClock();

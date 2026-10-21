@@ -16,6 +16,13 @@
   }
   .exit:hover { background: rgba(255, 255, 255, .1); }
   .tops { display: flex; gap: 8px; }
+  .mute { display: inline-flex; align-items: center; gap: 8px; padding: 0 16px 0 14px; }
+  .mute svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  .mute .spk { fill: currentColor; stroke: none; }
+  .mute .off, .mute[aria-pressed="true"] .on { display: none; }
+  .mute[aria-pressed="true"] .off { display: inline; }
+  .mute[aria-pressed="true"] { color: #AFA6BC; }
+  .mute[hidden] { display: none; }
   .stale { align-self: center; margin: 0 24px; padding: 10px 18px; border-radius: 14px; background: #2A1458; color: #FFFFFF; font-size: 14px; text-align: center; }
   .stale[hidden] { display: none; }
   .wrap { flex: 1; min-height: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px; padding: 0 24px; text-align: center; }
@@ -84,6 +91,7 @@
 <header class="top">
   <span class="eyebrow">Still · focusing</span>
   <div class="tops">
+    <button class="exit mute" id="mute" type="button" aria-pressed="false" title="Mute music"><svg viewBox="0 0 24 24" aria-hidden="true"><path class="spk" d="M4 9h4l5-4v14l-5-4H4z"/><path class="on" d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/><path class="off" d="M17 9l5 6M22 9l-5 6"/></svg><span id="mute-l">Sound on</span></button>
     <button class="exit" id="end" type="button">End focus</button>
   </div>
 </header>
