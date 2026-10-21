@@ -42,7 +42,10 @@ export const DEFAULT_PREFS = {
   customMin: 25,
   theme: 'vortex',
   sound: 'ambient',
-  volume: 70
+  volume: 70,
+  blockMin: 25,     // Block now: 25, 60, 0 (no limit) or -1 (other)
+  blockOther: 30,
+  blockStrict: false
 };
 
 export const SOUNDS = [
@@ -138,6 +141,14 @@ export function fmtClock(ms) {
   const total = Math.max(0, Math.round(ms / 1000));
   const m = Math.floor(total / 60), s = total % 60;
   return String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+}
+
+// A block with no end ("until I stop it") uses this as its end time.
+export const NO_END = 8.64e15;
+
+// "until 3:40 pm", or "until you stop it" for a block with no end.
+export function untilText(end) {
+  return end >= NO_END ? 'until you stop it' : 'until ' + fmtTime(end);
 }
 
 export function fmtTime(ts) {

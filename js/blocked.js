@@ -1,4 +1,4 @@
-import { getAll, send, fmtTime, rupees, pledgeArmed } from './lib.js';
+import { getAll, send, fmtTime, untilText, rupees, pledgeArmed } from './lib.js';
 
 const $ = (id) => document.getElementById(id);
 const url = (() => {
@@ -16,13 +16,20 @@ async function init() {
     $('open').addEventListener('click', () => { if (url) location.replace(url); });
     return;
   }
-  $('task').innerHTML = 'Your task right now: <b></b> · until ' + fmtTime(block.end);
-  $('task').querySelector('b').textContent = block.title;
+  if (block.eventId === 'manual') $('task').textContent = 'You turned on blocking ' + untilText(block.end) + '.';
+  else {
+    $('task').innerHTML = 'Your task right now: <b></b> · ' + untilText(block.end);
+    $('task').querySelector('b').textContent = block.title;
+  }
   $('task').hidden = false;
+  // Strict blocking you chose yourself: no way through until it ends.
+  if (block.manual && block.manual.strict && block.manual.end > Date.now()) {
+    $('open').hidden = true;
+  }
 
   const res = url ? await send('blockedHit', { url }) : null;
   const n = res && res.impulses ? res.impulses : block.impulses;
-  $('count').textContent = n + ' blocked during this task';
+  $('count').textContent = n + (block.eventId === 'manual' ? ' blocked so far' : ' blocked during this task');
 
   const host = (() => { try { return new URL(url).hostname.replace(/^www\./, ''); } catch (e) { return 'this site'; } })();
   if (pledgeArmed(block)) {

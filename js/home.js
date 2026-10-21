@@ -1,5 +1,5 @@
 import { attachSuggest } from './site-suggest.js';
-import { GOOGLE_CLIENT_ID, WALLET_API, WALLET_ENABLED, PLEDGES, CHARITIES, rupees, pledgeArmed, getAll, patch, send, esc, stillify, fmtWhen, fmtTime, ageDays, normalizeDomain, reducedMotion, KINDS, SOUNDS, THEMES } from './lib.js';
+import { untilText, NO_END, GOOGLE_CLIENT_ID, WALLET_API, WALLET_ENABLED, PLEDGES, CHARITIES, rupees, pledgeArmed, getAll, patch, send, esc, stillify, fmtWhen, fmtTime, ageDays, normalizeDomain, reducedMotion, KINDS, SOUNDS, THEMES } from './lib.js';
 import { mountVolume } from './volume.js';
 import { SCORING, summarize, encouragement, localOffset, dayKey, dayNumber, keyFromNumber } from './progress.js';
 import { mountSession } from './session-ui.js';
@@ -534,6 +534,97 @@ $('bucket-add').addEventListener('keydown', (e) => { if (e.key === 'Enter') addT
 
 // ---------- settings ----------
 
+// ---------- block now ----------
+
+const BN_OPTS = [
+  { min: 25, big: '25', unit: 'min' },
+  { min: 60, big: '1', unit: 'hour' },
+  { min: 0, big: '∞', unit: 'No limit' },
+  { min: -1, big: '…', unit: 'Other' }
+];
+
+function bnMinutes() {
+  const p = state.prefs;
+  return p.blockMin === -1 ? p.blockOther : p.blockMin;
+}
+
+function fmtLeft(ms) {
+  const m = Math.max(1, Math.round(ms / 60000));
+  if (m < 60) return m + ' min';
+  const h = Math.floor(m / 60), r = m % 60;
+  return h + ' hr' + (r ? ' ' + r + ' min' : '');
+}
+
+function renderBlockNow() {
+  const el = $('block-now');
+  const blk = state.block;
+  const n = state.settings.sites.length;
+  const sites = n + (n === 1 ? ' site' : ' sites');
+  if (blk && blk.manual) {
+    const m = blk.manual, now = Date.now();
+    const open = m.end >= NO_END;
+    const locked = m.strict && m.end > now;
+    const shared = blk.eventId !== 'manual';
+    el.className = 'card pad set-sec bn live';
+    el.innerHTML = `<div class="bn-top"><span class="bn-dot" aria-hidden="true"></span><span class="bn-tag">Blocking on</span></div>
+      <div class="bn-big">Blocking ${sites}</div>
+      <p class="muted bn-sub">${open ? 'Until you stop it · on for ' + fmtLeft(now - m.start) : 'Until ' + fmtTime(m.end) + ' · ' + fmtLeft(m.end - now) + ' left'}${shared ? ' · ' + esc(blk.title) + ' is blocking too' : ''}</p>
+      <div class="bn-actions">
+        ${open ? '' : '<button class="btn btn-sm" type="button" data-bn="more">+15 min</button>'}
+        ${locked ? `<span class="bn-lock"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="3.5" y="7" width="9" height="6.5" rx="1.5"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/></svg>Locked until ${fmtTime(m.end)}</span>`
+          : '<button class="btn btn-sm btn-ghost" type="button" data-bn="stop">Stop blocking</button>'}
+      </div>`;
+    return;
+  }
+  const p = state.prefs;
+  const noLimit = p.blockMin === 0;
+  el.className = 'card pad set-sec bn';
+  el.innerHTML = `<div><h2 class="h2" id="bn-label">Block now</h2>
+      <p class="muted small">Block your ${sites} right away. No focus session needed.</p></div>
+    <div class="bn-opts" role="radiogroup" aria-labelledby="bn-label">
+      ${BN_OPTS.map((o) => `<button type="button" class="bn-opt" role="radio" aria-checked="${p.blockMin === o.min}" data-bnmin="${o.min}"><b>${o.big}</b><span>${o.unit}</span></button>`).join('')}
+    </div>
+    ${p.blockMin === -1 ? `<div class="bn-other"><span>Other</span><div class="bn-step">
+      <button type="button" class="ins-arrow" data-bnstep="-5" aria-label="5 minutes less"${p.blockOther <= 5 ? ' disabled' : ''}>−</button>
+      <b>${fmtLeft(p.blockOther * 60000)}</b>
+      <button type="button" class="ins-arrow" data-bnstep="5" aria-label="5 minutes more"${p.blockOther >= 480 ? ' disabled' : ''}>+</button></div></div>` : ''}
+    <div class="toggle-row"><div><b id="bn-strict-l">Let me stop early</b><span class="muted small">${noLimit ? 'Always on with no limit, so you can turn it off.' : 'Turn this off to lock blocking until the time is up.'}</span></div>
+      <button class="switch" role="switch" id="bn-strict" aria-labelledby="bn-strict-l" aria-checked="${noLimit || !p.blockStrict}"${noLimit ? ' disabled' : ''}></button></div>
+    <button class="btn btn-primary bn-start" type="button" data-bn="start">${noLimit ? 'Start blocking' : 'Block for ' + fmtLeft(bnMinutes() * 60000)}</button>`;
+}
+
+$('block-now').addEventListener('click', async (e) => {
+  const opt = e.target.closest('[data-bnmin]');
+  const step = e.target.closest('[data-bnstep]');
+  const act = e.target.closest('[data-bn]');
+  const sw = e.target.closest('#bn-strict');
+  if (opt) {
+    state.prefs = await patch('prefs', { blockMin: Number(opt.dataset.bnmin) });
+    renderBlockNow();
+    const again = $('block-now').querySelector(`[data-bnmin="${opt.dataset.bnmin}"]`);
+    if (again) again.focus();
+  } else if (step && !step.disabled) {
+    state.prefs = await patch('prefs', { blockOther: Math.min(480, Math.max(5, state.prefs.blockOther + Number(step.dataset.bnstep))) });
+    renderBlockNow();
+    const again = $('block-now').querySelector(`[data-bnstep="${step.dataset.bnstep}"]`);
+    if (again && !again.disabled) again.focus();
+  } else if (sw && !sw.disabled) {
+    state.prefs = await patch('prefs', { blockStrict: !state.prefs.blockStrict });
+    renderBlockNow();
+    $('bn-strict').focus();
+  } else if (act) {
+    act.disabled = true;
+    if (act.dataset.bn === 'start') {
+      if (!state.settings.sites.length) { act.disabled = false; toast('Add a site below first.'); return; }
+      await send('blockNow', { minutes: bnMinutes(), strict: state.prefs.blockMin !== 0 && state.prefs.blockStrict });
+    } else if (act.dataset.bn === 'more') await send('extendManual', { minutes: 15 });
+    else if (act.dataset.bn === 'stop') await send('stopManual');
+    state = await getAll();
+    renderSettings();
+  }
+});
+setInterval(() => { if (current() === 'block' && state.block && state.block.manual) renderBlockNow(); }, 30000);
+
 function setRadio(selector, attr, value) {
   document.querySelectorAll(selector).forEach((b) => {
     const on = String(b.dataset[attr]) === String(value);
@@ -550,13 +641,13 @@ function renderSettings() {
   renderChips($('set-sites'), settings.sites);
   setRadio('[data-ow]', 'ow', settings.overrideWait);
   const blk = state.block;
-  $('block-state').textContent = blk
-    ? 'Blocking now for ' + blk.title + ', until ' + fmtTime(blk.end) + '.'
+  renderBlockNow();
+  $('block-state').textContent = blk && blk.eventId !== 'manual'
+    ? 'Blocking now for ' + blk.title + ', ' + untilText(blk.baseEnd || blk.end) + '.'
     : calendar.connected ? 'On from the start to the end of each event.' : 'Connect Google Calendar below to turn this on.';
   if (pledgeArmed(blk)) $('block-state').textContent += ' ' + rupees(blk.pledge * 100) + ' is pledged, so blocking runs to the end even if you switch it off.';
-  $('block-actions').innerHTML = blk
-    ? stopButton()
-    : '<button class="btn btn-sm" type="button" data-blk="test">Test blocking for 2 minutes</button>';
+  // Blocking you started yourself is stopped from the Block now card.
+  $('block-actions').innerHTML = blk && !blk.manual ? stopButton() : '';
   $('wallet').hidden = !WALLET_ENABLED;
   if (WALLET_ENABLED) renderWalletSettings();
   setRadio('[data-lead]', 'lead', settings.nudgeLeadMin);
@@ -648,13 +739,6 @@ document.querySelectorAll('[data-toggle]').forEach((b) => b.addEventListener('cl
   renderSettings();
   renderSetup();
 }));
-$('block-actions').addEventListener('click', async (e) => {
-  const b = e.target.closest('[data-blk]');
-  if (!b) return;
-  b.disabled = true;
-  await send('testBlock');
-  if (b.dataset.blk === 'test') toast('Blocking for 2 minutes. Try opening youtube.com.');
-});
 $('cal-actions').addEventListener('click', async (e) => {
   const b = e.target.closest('[data-cal]');
   if (!b) return;

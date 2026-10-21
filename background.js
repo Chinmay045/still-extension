@@ -3,7 +3,7 @@
 // The focus circle only primes the mind and never blocks. Sites are blocked while a focus
 // session's timer runs, and from a synced calendar task's start to its end.
 import { applySession, localOffset } from './js/progress.js';
-import { getAll, patch, kindOf, uid, normalizeDomain, fmtTime, rupees, pledgeArmed, GOOGLE_CLIENT_ID, WALLET_API, WALLET_ENABLED, THEMES, SOUNDS } from './js/lib.js';
+import { getAll, patch, kindOf, uid, normalizeDomain, fmtTime, untilText, NO_END, rupees, pledgeArmed, GOOGLE_CLIENT_ID, WALLET_API, WALLET_ENABLED, THEMES, SOUNDS } from './js/lib.js';
 
 const CAPTURE_W = 360;
 const CAPTURE_H = 400;
@@ -51,7 +51,7 @@ async function syncAfterWake() {
   const { session, calendar, block, settings } = await getAll();
   if (block && block.end > Date.now()) {
     await applyBlocking(blockSites(block, settings));
-    chrome.alarms.create('block-end', { when: block.end });
+    armBlockEnd(block.end);
   } else if (block) await endBlock();
   else await clearBlocking();
   if (session && session.phase === 'working' && session.endsAt <= Date.now()) await endSession('timeup');
@@ -92,6 +92,12 @@ function escapeRe(s) {
 function blockSites(block, settings) {
   if (!pledgeArmed(block)) return settings.sites;
   return Array.from(new Set((block.sites || []).concat(settings.sites)));
+}
+
+// The block-end alarm, except for a block with no end, which waits for Stop.
+function armBlockEnd(end) {
+  if (end >= NO_END) chrome.alarms.clear('block-end');
+  else chrome.alarms.create('block-end', { when: end });
 }
 
 async function applyBlocking(sites) {
@@ -258,9 +264,10 @@ async function adjustTime(deltaMin) {
     chrome.alarms.create('session-end', { when: session.endsAt });
     const { block } = await getAll();
     if (block && block.eventId === 'session:' + session.id) {
-      block.end = session.endsAt;
+      block.end = block.manual ? Math.max(session.endsAt, block.manual.end) : session.endsAt;
+      if (block.manual) block.baseEnd = session.endsAt;
       await chrome.storage.local.set({ block });
-      chrome.alarms.create('block-end', { when: block.end });
+      armBlockEnd(block.end);
     }
   }
   await chrome.storage.local.set({ session });
@@ -350,7 +357,13 @@ async function endSessionNow(reason, opts) {
   // The session's own block ends with it; its counts go into the summary.
   if (block && block.eventId === 'session:' + session.id) {
     Object.assign(session, { impulses: block.impulses, overrides: block.overrides, blocked: block.sites || [] });
-    await endBlock();
+    if (block.manual && block.manual.end > Date.now() + 1000) {
+      // Blocking you started yourself outlives the session.
+      const rest = { ...block, eventId: MANUAL_ID, key: MANUAL_ID + ':' + block.manual.start, title: 'Block now', session: false, end: block.manual.end, impulses: 0, overrides: 0 };
+      delete rest.baseEnd;
+      await chrome.storage.local.set({ block: rest });
+      armBlockEnd(rest.end);
+    } else await endBlock();
   }
   const now = Date.now();
   const focusedMs = session.phase === 'working' ? Math.min(now, session.endsAt) - session.startedAt : 0;
@@ -521,6 +534,7 @@ async function blockedHit(url) {
 async function allowOnce(url, tabId) {
   const { block } = await getAll();
   if (!block) return;
+  if (block.manual && block.manual.strict && block.manual.end > Date.now()) return;
   block.overrides += 1;
   await chrome.storage.local.set({ block });
   let host = '';
@@ -544,6 +558,7 @@ async function allowOnce(url, tabId) {
 // ---------- calendar-task blocking ----------
 
 function blockAllowed(e, settings) {
+  if (e.manual) return true;
   return e.session ? settings.sessionBlock !== false : !!settings.calendarBlock;
 }
 
@@ -552,10 +567,17 @@ async function startBlock(e) {
   const { block, settings } = await getAll();
   if (!blockAllowed(e, settings) || !(e.end > Date.now())) return block;
   if (block && block.end > Date.now()) {
+    if (block.eventId === MANUAL_ID && !e.manual) {
+      // You were already blocking: the task takes the block over, and your own end time stays.
+      Object.assign(block, { eventId: e.id, key: e.id + ':' + e.start, title: e.title, session: !!e.session, test: !!e.test, baseEnd: e.end, end: Math.max(e.end, block.manual ? block.manual.end : 0) });
+      await chrome.storage.local.set({ block });
+      armBlockEnd(block.end);
+      return block;
+    }
     if (e.end > block.end) {
       block.end = e.end;
       await chrome.storage.local.set({ block });
-      chrome.alarms.create('block-end', { when: block.end });
+      armBlockEnd(block.end);
     }
     return block;
   }
@@ -570,20 +592,21 @@ async function startBlock(e) {
     overrides: 0,
     test: !!e.test,
     session: !!e.session,
+    ...(e.manual ? { manual: { start: Date.now(), end: e.end, strict: !!e.strict } } : {}),
     sites: settings.sites.slice(),
     // Pledges belong to calendar tasks; a focus session's block never puts money on the line.
-    ...(e.session ? { pledge: 0 } : await pledgeFor(e, settings))
+    ...(e.session || e.manual ? { pledge: 0 } : await pledgeFor(e, settings))
   };
   await chrome.storage.local.set({ block: next });
   await applyBlocking(settings.sites);
-  chrome.alarms.create('block-end', { when: next.end });
+  armBlockEnd(next.end);
   const id = 'block|' + Date.now();
   const stake = next.pledge ? ' ' + rupees(next.pledge * 100) + ' is on the line.' : next.pledgeShort ? ' Your wallet is too low for the ' + rupees(next.pledgeShort * 100) + ' pledge, so none is set.' : '';
   chrome.notifications.create(id, {
     type: 'basic',
     iconUrl: ICON,
-    title: e.session ? 'Focus started: ' + e.title : e.title + ' has started',
-    message: 'Distracting sites are blocked until ' + fmtTime(next.end) + '.' + stake,
+    title: e.manual ? 'Blocking is on' : e.session ? 'Focus started: ' + e.title : e.title + ' has started',
+    message: 'Distracting sites are blocked ' + untilText(next.end) + '.' + stake,
     silent: true,
     priority: 0
   });
@@ -598,13 +621,13 @@ async function endBlock() {
   if (!block) return null;
   await chrome.storage.local.set({ block: null });
   // Focus sessions log their own history entry when they end.
-  if (!block.test && !block.session) {
+  if (!block.test && !block.session && block.eventId !== MANUAL_ID) {
     const { history } = await chrome.storage.local.get('history');
     const entry = {
       kind: 'calendar',
       task: block.title,
-      minutesFocused: Math.max(0, Math.round((Math.min(Date.now(), block.end) - block.start) / 60000)),
-      plannedMin: Math.round((block.end - block.start) / 60000),
+      minutesFocused: Math.max(0, Math.round((Math.min(Date.now(), block.baseEnd || block.end) - block.start) / 60000)),
+      plannedMin: Math.round(((block.baseEnd || block.end) - block.start) / 60000),
       blocked: [],
       impulses: block.impulses,
       overrides: block.overrides,
@@ -630,6 +653,70 @@ async function checkBlockNow() {
 // Lets the user see blocking work without waiting for a real event.
 async function testBlock() {
   return startBlock({ id: 'test-block', title: 'Test task', start: Date.now(), end: Date.now() + 2 * 60000, test: true });
+}
+
+// ---------- block now ----------
+// Blocking you start yourself, for a set time or until you stop it. If a focus
+// session or calendar task is already blocking, this stretches that block instead,
+// and the task's own end time is kept in baseEnd so stopping goes back to it.
+
+const MANUAL_ID = 'manual';
+
+async function blockNow(minutes, strict) {
+  const now = Date.now();
+  const end = minutes > 0 ? now + Math.min(minutes, 24 * 60) * 60000 : NO_END;
+  // No limit can't be strict, or there would be no way out.
+  const manual = { start: now, end, strict: !!strict && end < NO_END };
+  const { block } = await getAll();
+  if (block && block.end > now) {
+    if (block.eventId === MANUAL_ID) {
+      block.manual = manual;
+      block.end = end;
+    } else {
+      if (!block.manual) block.baseEnd = block.end;
+      block.manual = manual;
+      block.end = Math.max(block.baseEnd, end);
+    }
+    await chrome.storage.local.set({ block });
+    armBlockEnd(block.end);
+    return block;
+  }
+  return startBlock({ id: MANUAL_ID, title: 'Block now', start: now, end, manual: true, strict: manual.strict });
+}
+
+async function extendManual(minutes) {
+  const { block } = await getAll();
+  if (!block || !block.manual || block.manual.end >= NO_END) return block;
+  block.manual.end = Math.max(Date.now(), block.manual.end) + minutes * 60000;
+  block.end = Math.max(block.baseEnd || 0, block.manual.end);
+  await chrome.storage.local.set({ block });
+  armBlockEnd(block.end);
+  return block;
+}
+
+async function stopManual() {
+  const { block } = await getAll();
+  if (!block || !block.manual) return { ok: false };
+  if (block.manual.strict && block.manual.end > Date.now()) return { ok: false, locked: true };
+  if (block.eventId === MANUAL_ID) {
+    await endBlock();
+    return { ok: true };
+  }
+  // A focus session or calendar task was blocking too: go back to its own end.
+  const base = block.baseEnd;
+  delete block.manual;
+  delete block.baseEnd;
+  block.end = base;
+  if (base <= Date.now() + 1000) {
+    await chrome.storage.local.set({ block });
+    const { session } = await getAll();
+    if (block.session && session && block.eventId === 'session:' + session.id) await endSession('timeup');
+    else await endBlock();
+  } else {
+    await chrome.storage.local.set({ block });
+    armBlockEnd(base);
+  }
+  return { ok: true };
 }
 
 // ---------- focus wallet ----------
@@ -1115,7 +1202,7 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
     if (e) await startBlock(e);
   } else if (alarm.name === 'block-end') {
     const { block } = await getAll();
-    if (block && block.end > Date.now() + 1000) chrome.alarms.create('block-end', { when: block.end });
+    if (block && block.end > Date.now() + 1000) armBlockEnd(block.end);
     else if (block && block.session) {
       // A focus session's block ends with the session, so its counts reach the summary.
       const { session } = await getAll();
@@ -1144,6 +1231,9 @@ const handlers = {
   testBlock: () => testBlock(),
   endBlock: () => endBlock(),
   stopBlock: (m) => stopBlock(!!m.forfeit),
+  blockNow: (m) => blockNow(Number(m.minutes) || 0, !!m.strict),
+  extendManual: (m) => extendManual(Number(m.minutes) || 15),
+  stopManual: () => stopManual(),
   breakTask: (m, sender) => breakTask(m.url, sender.tab.id),
   walletSignIn: () => walletSignIn(),
   walletSignOut: () => walletSignOut(),
