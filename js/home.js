@@ -285,9 +285,6 @@ function renderSetup() {
   } else volumeUi.set(prefs.volume);
   previewEngine.setVolume(prefs.volume);
 
-  const theme = THEMES.find((t) => t.id === prefs.theme) || THEMES[0];
-  const sound = SOUNDS.find((s) => s.id === prefs.sound) || SOUNDS[0];
-  $('customize-sum').textContent = theme.name + ' · ' + (sound.id === 'off' ? 'No sound' : sound.name);
   $('start-note').textContent = settings.sessionBlock && settings.sites.length ? 'Blocked sites close until the timer ends.' : '';
 }
 
