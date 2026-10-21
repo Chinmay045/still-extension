@@ -45,6 +45,25 @@
   .acts .grow { flex: 1; }
   .ghost { height: 30px; padding: 0 12px; border: 0; border-radius: 999px; background: transparent; color: #FFFFFF; font-size: 12.5px; font-weight: 600; }
   .ghost:hover { background: rgba(255, 255, 255, 0.2); }
+  [hidden] { display: none !important; }
+  /* Picker: how long, which circle, which music. */
+  body.picking .sheet { justify-content: flex-start; gap: 12px; padding: 30px 22px 28px; text-align: left; }
+  .pick { display: flex; flex-direction: column; gap: 14px; }
+  .pick-title { font-family: 'Inter Tight', sans-serif; font-size: 16px; font-weight: 600; letter-spacing: -0.02em; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .grp { display: flex; flex-direction: column; gap: 7px; }
+  .lbl { font-size: 11px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--g5); }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { height: 30px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--g2); background: #FFFFFF; color: var(--ink); font-size: 12.5px; font-weight: 500; }
+  .chip:hover { border-color: var(--v2); }
+  .chip[aria-checked="true"] { border-color: var(--v3); background: var(--v3); color: #FFFFFF; }
+  .step { display: inline-flex; align-items: center; gap: 4px; margin-top: 2px; }
+  .step button { width: 30px; height: 30px; border-radius: 999px; border: 1px solid var(--g2); background: #FFFFFF; color: var(--ink); font-size: 16px; line-height: 1; }
+  .step output { min-width: 64px; text-align: center; font-size: 13.5px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .circles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .circ { display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 6px 4px; border: 1px solid transparent; border-radius: 14px; background: transparent; font-size: 12px; font-weight: 500; color: var(--ink); }
+  .circ img { width: 54px; height: 54px; border-radius: 50%; background: #000; display: block; box-shadow: 0 0 0 2px #FFFFFF, 0 0 0 3px var(--g2); }
+  .circ[aria-checked="true"] { border-color: var(--g2); background: #F7F3FD; }
+  .circ[aria-checked="true"] img { box-shadow: 0 0 0 2px #FFFFFF, 0 0 0 4px var(--v3); }
   .go { min-height: 30px; padding: 0 16px; font-size: 13px; background: #FFFFFF !important; color: var(--v3) !important; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12) !important; }
 </style>
 </head>
@@ -54,14 +73,41 @@
   <h1 id="head">Coming up</h1>
   <button class="hbtn" id="close" title="Not now" aria-label="Not now"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
 </header>
-<main class="sheet" role="status">
-  <span class="when" id="when"></span>
-  <span class="title" id="title"></span>
-  <span class="meta" id="meta"></span>
+<main class="sheet">
+  <div id="info" role="status" style="display:contents">
+    <span class="when" id="when"></span>
+    <span class="title" id="title"></span>
+    <span class="meta" id="meta"></span>
+  </div>
+  <div class="pick" id="pick" hidden>
+    <span class="pick-title" id="pick-title"></span>
+    <div class="grp">
+      <span class="lbl" id="len-l">How long</span>
+      <div class="chips" role="radiogroup" aria-labelledby="len-l" id="lens">
+        <button type="button" class="chip" role="radio" data-len="10">10 min</button>
+        <button type="button" class="chip" role="radio" data-len="15">15 min</button>
+        <button type="button" class="chip" role="radio" data-len="custom">Custom</button>
+      </div>
+      <div class="step" id="step" hidden>
+        <button type="button" id="less" aria-label="5 minutes less">−</button>
+        <output id="custom" aria-live="polite"></output>
+        <button type="button" id="more" aria-label="5 minutes more">+</button>
+      </div>
+    </div>
+    <div class="grp">
+      <span class="lbl" id="circ-l">Focus circle</span>
+      <div class="circles" role="radiogroup" aria-labelledby="circ-l" id="circles"></div>
+    </div>
+    <div class="grp">
+      <span class="lbl" id="snd-l">Music</span>
+      <div class="chips" role="radiogroup" aria-labelledby="snd-l" id="sounds"></div>
+    </div>
+  </div>
 </main>
 <footer class="roller">
   <div class="acts">
     <button class="ghost" id="setup" title="Open the Focus page with this task filled in">Set up first</button>
+    <button class="ghost" id="back" hidden>Back</button>
     <span class="grow"></span>
     <button class="btn btn-primary go" id="focus">Focus now</button>
   </div>

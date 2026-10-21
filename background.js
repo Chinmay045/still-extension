@@ -3,12 +3,13 @@
 // The focus circle only primes the mind and never blocks. Sites are blocked while a focus
 // session's timer runs, and from a synced calendar task's start to its end.
 import { applySession, localOffset } from './js/progress.js';
-import { getAll, patch, kindOf, uid, normalizeDomain, fmtTime, rupees, pledgeArmed, GOOGLE_CLIENT_ID, WALLET_API, WALLET_ENABLED } from './js/lib.js';
+import { getAll, patch, kindOf, uid, normalizeDomain, fmtTime, rupees, pledgeArmed, GOOGLE_CLIENT_ID, WALLET_API, WALLET_ENABLED, THEMES, SOUNDS } from './js/lib.js';
 
 const CAPTURE_W = 360;
 const CAPTURE_H = 400;
 const NUDGE_W = 360;
 const NUDGE_H = 300;
+const NUDGE_FOCUS_MIN = 10;
 const OVERRIDE_RULE_BASE = 9000;
 const ICON = 'assets/icon-128.png';
 
@@ -944,13 +945,18 @@ async function openNudge(eventId) {
 }
 
 // Focus now: the event becomes the session and the circle opens.
-async function focusFromEvent(eventId) {
+// The nudge's picker sends minutes, circle and music; the notification button sends none,
+// so it starts a short 10 minute focus with the last circle and music used.
+async function focusFromEvent(eventId, pick) {
   const { calEvents } = await chrome.storage.local.get('calEvents');
   const e = (calEvents || {})[eventId];
   if (!e) return null;
-  const { prefs } = await getAll();
-  // Once the event has started, focus for the time it has left.
-  const mins = Math.max(1, Math.min(240, Math.round((e.end - Math.max(e.start, Date.now())) / 60000)));
+  const p = pick || {};
+  const mins = Math.max(1, Math.min(240, Math.round(Number(p.minutes) || NUDGE_FOCUS_MIN)));
+  const chosen = {};
+  if (THEMES.some((t) => t.id === p.theme)) chosen.theme = p.theme;
+  if (SOUNDS.some((s) => s.id === p.sound)) chosen.sound = p.sound;
+  const prefs = Object.keys(chosen).length ? await patch('prefs', chosen) : (await getAll()).prefs;
   return startSession({ task: e.title, plannedMin: mins, theme: prefs.theme, sound: prefs.sound, volume: prefs.volume, fromCalendar: true, circle: true });
 }
 
@@ -1110,7 +1116,7 @@ const handlers = {
   calDemo: () => connectDemo(),
   calDisconnect: () => disconnectCalendar(),
   calTestNudge: () => testNudge(),
-  nudgeFocus: (m) => focusFromEvent(m.eventId),
+  nudgeFocus: (m) => focusFromEvent(m.eventId, m),
   nudgePrepare: (m) => prepareFromEvent(m.eventId),
   calRefresh: () => pollCalendar(),
   previewStop: () => null
