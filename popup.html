@@ -9,7 +9,14 @@
   body { width: 340px; padding: 18px; }
   .top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
   .top img { height: 26px; }
-  .status { font-size: 12px; font-weight: 600; color: var(--v4); background: var(--lav); border: 1px solid var(--lav-border); padding: 3px 10px; border-radius: 999px; }
+  .cal { display: inline-flex; align-items: center; gap: 7px; height: 30px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--g2); background: #FFFFFF; color: var(--ink); font-size: 12.5px; font-weight: 600; }
+  .cal:hover { background: var(--lav); }
+  .cal .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--g3); flex: none; }
+  .cal[data-state="synced"] .dot { background: #34C759; }
+  .cal[data-state="off"] { color: var(--v3); border-color: var(--lav-border); background: var(--lav); }
+  .cal[data-state="broken"] { color: #B42318; border-color: #F4C7C3; background: #FEF3F2; }
+  .cal[data-state="broken"] .dot { background: #E5484D; }
+  .cal-note { font-size: 12px; color: #B42318; text-align: right; margin: -10px 0 10px; }
   .stack { display: flex; flex-direction: column; gap: 12px; }
   .links { display: flex; justify-content: space-between; margin-top: 4px; }
   .links button { border: 0; background: transparent; color: var(--v2); font-weight: 500; font-size: 13.5px; padding: 6px 4px; border-radius: 8px; }
@@ -21,18 +28,18 @@
 <body>
 <div class="top">
   <img src="assets/logo.png" alt="Still">
-  <span class="status" id="status">Ready</span>
+  <button class="cal" id="cal" type="button" data-state="off"><span class="dot" aria-hidden="true"></span><span id="cal-label">Connect Calendar</span></button>
 </div>
 
+<div class="cal-note" id="cal-note" role="status" hidden></div>
+
 <section id="idle" class="stack" hidden>
-  <label class="label" for="task">Your one task</label>
-  <input class="input" id="task" placeholder="What's the one thing?" autocomplete="off">
   <button class="btn btn-primary" id="start">Start focus</button>
   <div class="meta" id="idle-meta"></div>
   <div class="links">
     <button id="to-bucket" title="Review the thoughts you saved">Bucket <span id="bucket-count"></span></button>
     <button id="to-capture" title="Write a thought down without leaving your work (Alt+P)">Capture thought</button>
-    <button id="to-home">Focus</button>
+    <button id="to-block" title="Choose the sites Still blocks">Block</button>
   </div>
 </section>
 
