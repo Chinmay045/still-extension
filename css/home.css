@@ -520,8 +520,8 @@ main:focus { outline: none; }
 
 /* Block now */
 .bn { gap: 16px; }
-.bn > div:first-child { display: flex; flex-direction: column; gap: 8px; }
-.bn > div:first-child p { margin: 0; }
+.bn:not(.live) > div:first-child { display: flex; flex-direction: column; gap: 8px; }
+.bn:not(.live) > div:first-child p { margin: 0; }
 .bn-opts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
 .bn-opt { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; height: 84px; border-radius: 18px; border: 1.5px solid var(--g2); background: #FFFFFF; color: var(--ink); font: inherit; cursor: pointer; }
 .bn-opt b { font-family: 'Inter Tight', sans-serif; font-size: 26px; font-weight: 500; letter-spacing: -0.03em; line-height: 1.1; }
@@ -553,3 +553,21 @@ main:focus { outline: none; }
 /* Shown when the running background worker is older than these pages. */
 .reload-bar { position: sticky; top: 68px; z-index: 19; display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 14px; padding: 10px 16px; background: #17151C; color: #E9DDF8; font-size: 14px; }
 .reload-bar b { color: #FFFFFF; font-weight: 600; }
+
+/* Stopping a block: look back, then hold. */
+.bn-stop { position: relative; display: flex; flex-direction: column; gap: 12px; margin-top: 6px; padding: 16px 18px; border-radius: 18px; background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.1); animation: sum-rise .25s ease-out both; }
+.bn-chose { font-family: 'Inter Tight', sans-serif; font-size: 18px; font-weight: 500; letter-spacing: -0.02em; color: #FFFFFF; }
+.bn-meter { height: 8px; border-radius: 4px; background: rgba(255, 255, 255, 0.1); overflow: hidden; }
+.bn-meter i { display: block; height: 100%; border-radius: 4px; background: linear-gradient(90deg, #9B4DF5, #D63DD0); }
+.bn-facts { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 13.5px; color: #AFA6BC; }
+.bn-facts b { color: #FFFFFF; font-weight: 600; font-variant-numeric: tabular-nums; }
+.bn-stop .bn-actions { margin-top: 2px; }
+.bn.live .btn.bn-keep { background: #FFFFFF; color: var(--ink); border-color: transparent; }
+.bn.live .btn.bn-keep:hover { background: #F2EEF8; }
+.bn-anyway { border: 0; background: none; padding: 6px 4px; font: inherit; font-size: 13.5px; color: #AFA6BC; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.bn-anyway:disabled { text-decoration: none; opacity: .55; cursor: default; }
+.bn-hold { position: relative; overflow: hidden; height: 36px; padding: 0 18px; border-radius: 999px; border: 1px solid rgba(255, 255, 255, 0.22); background: transparent; color: #FFFFFF; font: inherit; font-size: 13.5px; font-weight: 500; cursor: pointer; user-select: none; -webkit-user-select: none; touch-action: none; }
+.bn-hold-fill { position: absolute; inset: 0; transform-origin: left; transform: scaleX(0); background: linear-gradient(90deg, #9B4DF5, #D63DD0); transition: transform .25s ease-out; }
+.bn-hold.holding .bn-hold-fill { transform: scaleX(1); transition: transform 3s linear; }
+.bn-hold-t { position: relative; }
+@media (prefers-reduced-motion: reduce) { .bn-stop { animation: none; } }

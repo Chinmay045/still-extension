@@ -567,7 +567,92 @@ function fmtLeft(ms) {
   return h + ' hr' + (r ? ' ' + r + ' min' : '');
 }
 
+// Stopping takes two more steps: first a look back at the choice you made,
+// then holding a button down. Keep blocking is always the easy way out.
+const bnStop = { step: 0, key: '', wait: 0, timer: null, hold: null };
+const HOLD_MS = 3000;
+const STOP_WAIT_S = 5;
+
+function bnStopPanel(blk, now) {
+  const m = blk.manual;
+  const open = m.end >= NO_END;
+  const kept = now - m.start;
+  const pct = open ? 100 : Math.min(100, Math.round((kept / (m.end - m.start)) * 100));
+  const visits = blk.impulses || 0;
+  if (bnStop.step === 1) {
+    return `<div class="bn-stop" role="group" aria-label="Stop blocking">
+      <div class="bn-chose">You chose this at ${fmtTime(m.start)}.</div>
+      <div class="bn-meter" aria-hidden="true"><i style="width:${pct}%"></i></div>
+      <div class="bn-facts"><span><b>${fmtLeft(kept)}</b> kept</span>${open ? '' : `<span><b>${fmtLeft(m.end - now)}</b> to go</span>`}<span><b>${visits}</b> ${visits === 1 ? 'visit' : 'visits'} blocked</span></div>
+      <div class="bn-actions">
+        <button class="btn btn-sm bn-keep" type="button" data-bn="keep">Keep blocking</button>
+        <button class="bn-anyway" type="button" data-bn="next"${bnStop.wait > 0 ? ' disabled' : ''}>${bnStop.wait > 0 ? 'Stop anyway (' + bnStop.wait + ')' : 'Stop anyway'}</button>
+      </div>
+    </div>`;
+  }
+  return `<div class="bn-stop" role="group" aria-label="Stop blocking">
+    <div class="bn-chose">Still sure?</div>
+    <div class="bn-actions">
+      <button class="btn btn-sm bn-keep" type="button" data-bn="keep">Keep blocking</button>
+      <button class="bn-hold" type="button" id="bn-hold" aria-label="Hold for 3 seconds to stop blocking"><span class="bn-hold-fill" aria-hidden="true"></span><span class="bn-hold-t">Hold to stop</span></button>
+    </div>
+  </div>`;
+}
+
+function bnStopReset() {
+  clearInterval(bnStop.timer);
+  clearTimeout(bnStop.hold);
+  Object.assign(bnStop, { step: 0, wait: 0, timer: null, hold: null });
+}
+
+function bnStopStep1() {
+  bnStopReset();
+  bnStop.step = 1;
+  bnStop.key = state.block && state.block.key;
+  bnStop.wait = STOP_WAIT_S;
+  bnStop.timer = setInterval(() => {
+    bnStop.wait -= 1;
+    const b = $('block-now').querySelector('[data-bn="next"]');
+    if (b) {
+      b.disabled = bnStop.wait > 0;
+      b.textContent = bnStop.wait > 0 ? 'Stop anyway (' + bnStop.wait + ')' : 'Stop anyway';
+    }
+    if (bnStop.wait <= 0) clearInterval(bnStop.timer);
+  }, 1000);
+}
+
+function holdStart(e) {
+  const b = e.target.closest('#bn-hold');
+  if (!b || bnStop.hold || (e.type === 'keydown' && ((e.key !== ' ' && e.key !== 'Enter') || e.repeat))) return;
+  e.preventDefault();
+  b.classList.add('holding');
+  bnStop.hold = setTimeout(async () => {
+    bnStop.hold = null;
+    b.disabled = true;
+    bnStopReset();
+    await send('stopManual');
+    state = await getAll();
+    renderSettings();
+  }, HOLD_MS);
+}
+
+function holdEnd() {
+  if (!bnStop.hold) return;
+  clearTimeout(bnStop.hold);
+  bnStop.hold = null;
+  const b = $('bn-hold');
+  if (b) b.classList.remove('holding');
+}
+
+$('block-now').addEventListener('pointerdown', holdStart);
+$('block-now').addEventListener('keydown', holdStart);
+['pointerup', 'pointerleave', 'pointercancel'].forEach((t) => $('block-now').addEventListener(t, holdEnd));
+$('block-now').addEventListener('keyup', (e) => { if (e.key === ' ' || e.key === 'Enter') holdEnd(); });
+
 function renderBlockNow() {
+  // Mid-hold, a redraw would drop the press; the block changing resets the steps.
+  if (bnStop.hold) return;
+  if (bnStop.step && (!state.block || !state.block.manual || state.block.key !== bnStop.key)) bnStopReset();
   const el = $('block-now');
   const blk = state.block;
   const n = state.settings.sites.length;
@@ -581,11 +666,11 @@ function renderBlockNow() {
     el.innerHTML = `<div class="bn-top"><span class="bn-dot" aria-hidden="true"></span><span class="bn-tag">Blocking on</span></div>
       <div class="bn-big">Blocking ${sites}</div>
       <p class="muted bn-sub">${open ? 'Until you stop it · on for ' + fmtLeft(now - m.start) : 'Until ' + fmtTime(m.end) + ' · ' + fmtLeft(m.end - now) + ' left'}${shared ? ' · ' + esc(blk.title) + ' is blocking too' : ''}</p>
-      <div class="bn-actions">
+      ${locked || !bnStop.step ? `<div class="bn-actions">
         ${open ? '' : '<button class="btn btn-sm" type="button" data-bn="more">+15 min</button>'}
         ${locked ? `<span class="bn-lock"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="3.5" y="7" width="9" height="6.5" rx="1.5"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/></svg>Locked until ${fmtTime(m.end)}</span>`
           : '<button class="btn btn-sm btn-ghost" type="button" data-bn="stop">Stop blocking</button>'}
-      </div>`;
+      </div>` : bnStopPanel(blk, now)}`;
     return;
   }
   const p = state.prefs;
@@ -635,9 +720,15 @@ $('block-now').addEventListener('click', async (e) => {
         return;
       }
     } else if (act.dataset.bn === 'more') await send('extendManual', { minutes: 15 });
-    else if (act.dataset.bn === 'stop') await send('stopManual');
+    else if (act.dataset.bn === 'stop') bnStopStep1();
+    else if (act.dataset.bn === 'next') { if (bnStop.wait > 0) return; clearInterval(bnStop.timer); bnStop.step = 2; }
+    else if (act.dataset.bn === 'keep') bnStopReset();
     state = await getAll();
     renderSettings();
+    const kind = act.dataset.bn;
+    const next = kind === 'stop' || kind === 'next' ? '[data-bn="keep"]' : kind === 'keep' ? '[data-bn="stop"]' : null;
+    const f = next && $('block-now').querySelector(next);
+    if (f) f.focus();
   }
 });
 setInterval(() => { if (current() === 'block' && state.block && state.block.manual) renderBlockNow(); }, 30000);
