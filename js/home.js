@@ -1,3 +1,4 @@
+import { attachSuggest } from './site-suggest.js';
 import { GOOGLE_CLIENT_ID, WALLET_API, PLEDGES, CHARITIES, rupees, pledgeArmed, getAll, patch, send, esc, stillify, fmtWhen, fmtTime, ageDays, normalizeDomain, reducedMotion, KINDS, SOUNDS, THEMES } from './lib.js';
 import { mountVolume } from './volume.js';
 import { SCORING, summarize, encouragement, localOffset } from './progress.js';
@@ -358,10 +359,15 @@ $('sounds').addEventListener('click', (e) => {
 radioKeys($('sounds'), '[data-sound]');
 
 async function addSite(input) {
-  const d = normalizeDomain(input.value);
+  const raw = input.value.trim().toLowerCase();
+  // A bare name like "netflix" means netflix.com.
+  const d = normalizeDomain(raw) || (/^[a-z0-9-]+$/.test(raw) ? raw + '.com' : '');
   if (!d) { toast('Type a site like instagram.com'); return; }
-  if (!state.settings.sites.includes(d)) state.settings = await patch('settings', { sites: state.settings.sites.concat([d]) });
   input.value = '';
+  await addDomain(d);
+}
+async function addDomain(d) {
+  if (!state.settings.sites.includes(d)) state.settings = await patch('settings', { sites: state.settings.sites.concat([d]) });
   renderSetup();
   renderSettings();
 }
@@ -371,6 +377,8 @@ async function removeSite(d) {
   renderSettings();
 }
 [['setup-site-input', 'setup-site-add'], ['set-site-input', 'set-site-add']].forEach(([inp, btn]) => {
+  // Registered first so Enter on a highlighted suggestion adds that one.
+  attachSuggest($(inp), () => state.settings.sites, addDomain);
   $(btn).addEventListener('click', () => addSite($(inp)));
   $(inp).addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); addSite($(inp)); } });
 });
