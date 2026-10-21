@@ -32,8 +32,8 @@ export const DEFAULT_SETTINGS = {
 
 export const DEFAULT_PREFS = {
   task: '',
-  plannedMin: 25,
-  customMin: 90,
+  plannedMin: 10,
+  customMin: 20,
   theme: 'vortex',
   sound: 'ambient',
   volume: 70

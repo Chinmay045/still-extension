@@ -243,7 +243,7 @@ function renderSetup() {
   if (document.activeElement !== task) task.value = prefs.task || '';
   $('from-cal').hidden = !prefs.fromCalendar;
 
-  const isCustom = ![25, 50].includes(prefs.plannedMin);
+  const isCustom = ![10, 15].includes(prefs.plannedMin);
   document.querySelectorAll('[data-len]').forEach((b) => {
     const on = b.dataset.len === 'custom' ? isCustom : Number(b.dataset.len) === prefs.plannedMin;
     b.setAttribute('aria-checked', String(on));
@@ -322,7 +322,7 @@ $('len-seg').addEventListener('click', (e) => {
   const b = e.target.closest('[data-len]');
   if (!b) return;
   if (b.dataset.len === 'custom') {
-    const c = [25, 50].includes(state.prefs.customMin) ? 90 : (state.prefs.customMin || 90);
+    const c = [10, 15].includes(state.prefs.customMin) ? 20 : (state.prefs.customMin || 20);
     setPrefs({ plannedMin: c, customMin: c });
   } else setPrefs({ plannedMin: Number(b.dataset.len) });
 });
@@ -772,7 +772,7 @@ function renderInsights() {
       ${table}
     </div></section>` +
     group('How points work',
-      row('1 point per minute', 'Earned when a session’s timer runs out. A 25-minute session earns 25.', '') +
+      row('1 point per minute', 'Earned when a session’s timer runs out. A 15-minute session earns 15.', '') +
       row(SCORING.minEligibleMinutes + ' minutes or more', 'Shorter sessions are welcome but don’t earn points or count toward a streak.', '') +
       row('Nothing is taken away', 'Ending early earns nothing for that session. Points you have stay yours.', '') +
       row('Streaks count calendar days', 'A session counts for the day its timer started, in your local time.', ''));

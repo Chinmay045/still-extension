@@ -7,7 +7,7 @@
 
 // Scoring rules. Change these and nothing else to retune the system.
 export const SCORING = {
-  pointsPerMinute: 1,       // a 25-minute session earns 25 points
+  pointsPerMinute: 1,       // a 15-minute session earns 15 points
   minEligibleMinutes: 10,   // shorter completed sessions earn nothing and don't count as a focus day
   maxMinutesPerSession: 240,
   rememberAwarded: 500      // how many session ids to keep for duplicate protection

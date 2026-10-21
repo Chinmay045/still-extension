@@ -21,6 +21,12 @@ chrome.runtime.onInstalled.addListener(async (details) => {
     if (!all.settings.sites.includes('instagram.com')) all.settings.sites.push('instagram.com');
     all.settings.sitesV2 = true;
   }
+  if (!all.prefs.lenV2) {
+    // The presets moved from 25/50 to 10/15 minutes; old picks move to the new default.
+    if ([25, 50].includes(all.prefs.plannedMin)) all.prefs.plannedMin = 10;
+    if ([25, 50, 90].includes(all.prefs.customMin)) all.prefs.customMin = 20;
+    all.prefs.lenV2 = true;
+  }
   await chrome.storage.local.set({ settings: all.settings, prefs: all.prefs, parked: all.parked });
   chrome.alarms.create('archive', { delayInMinutes: 1, periodInMinutes: 24 * 60 });
   await syncAfterWake();
@@ -137,7 +143,7 @@ async function closeOffscreenLater(ms) {
 async function startSession(cfg) {
   const { settings, session: old } = await getAll();
   if (old) await endSession('replaced', { silent: true });
-  const plannedMin = Math.max(1, Math.min(240, Math.round(Number(cfg.plannedMin) || 25)));
+  const plannedMin = Math.max(1, Math.min(240, Math.round(Number(cfg.plannedMin) || 10)));
   const session = {
     id: uid(),
     task: String(cfg.task || '').trim() || 'One focused block',
