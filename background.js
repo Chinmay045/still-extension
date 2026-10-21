@@ -77,11 +77,19 @@ chrome.storage.onChanged.addListener(async (changes, area) => {
     // Keep the live block in step with the Settings list and toggle. A task with a
     // live pledge keeps blocking until it ends: turning blocking off is not a way out.
     const { block, settings } = await getAll();
+    // A live block's sites can be added to but never removed, whatever page tries.
+    const before = (changes.settings.oldValue && changes.settings.oldValue.sites) || [];
+    if (block && block.end > Date.now()) {
+      const dropped = before.filter((d) => !settings.sites.includes(d));
+      if (dropped.length) {
+        await chrome.storage.local.set({ settings: Object.assign({}, settings, { sites: settings.sites.concat(dropped) }) });
+        return;
+      }
+    }
     if (block && !blockAllowed(block, settings) && !pledgeArmed(block)) await endBlock();
     else if (block) {
       await applyBlocking(blockSites(block, settings));
       // A site added while blocking is on closes in tabs that already have it open.
-      const before = (changes.settings.oldValue && changes.settings.oldValue.sites) || [];
       const added = settings.sites.filter((d) => !before.includes(d));
       if (added.length) await sweepTabs(added);
     } else if (settings.calendarBlock) await checkBlockNow();

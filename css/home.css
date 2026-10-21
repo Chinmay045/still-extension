@@ -596,3 +596,10 @@ main:focus { outline: none; }
 .bn-hold.holding .bn-hold-fill { transform: scaleX(1); transition: transform 3s linear; }
 .bn-hold-t { position: relative; }
 @media (prefers-reduced-motion: reduce) { .bn-stop { animation: none; } }
+
+/* Blocked sites while blocking is on: add only. */
+.sites-note { display: flex; align-items: flex-start; gap: 8px; margin: 0; padding: 10px 14px; border-radius: 14px; background: var(--lav); border: 1px solid var(--lav-border); color: var(--v4); line-height: 1.45; }
+.sites-note svg { flex-shrink: 0; width: 16px; height: 16px; margin-top: 1px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linejoin: round; }
+.sites-note b { font-weight: 600; }
+.chip-lock { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; color: var(--g4); }
+.chip-lock svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linejoin: round; }

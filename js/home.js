@@ -332,9 +332,20 @@ $('cal-offer-use').addEventListener('click', async () => {
   $('start').focus();
 });
 
-function renderChips(el, sites) {
+const LOCK_SVG = '<svg viewBox="0 0 16 16" aria-hidden="true"><rect x="3.5" y="7" width="9" height="6.5" rx="1.5"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/></svg>';
+
+// While blocking is on, sites can be added but not taken off.
+function blockingNow() {
+  const b = state.block;
+  return b && b.end > Date.now() ? b : null;
+}
+
+function renderChips(el, sites, locked) {
+  el.classList.toggle('locked', !!locked);
   el.innerHTML = sites.length
-    ? sites.map((s) => `<span class="chip">${esc(s)}<button type="button" data-remove="${esc(s)}" aria-label="Remove ${esc(s)}">×</button></span>`).join('')
+    ? sites.map((s) => locked
+      ? `<span class="chip" title="Can't remove while blocking is on">${esc(s)}<i class="chip-lock">${LOCK_SVG}</i></span>`
+      : `<span class="chip">${esc(s)}<button type="button" data-remove="${esc(s)}" aria-label="Remove ${esc(s)}">×</button></span>`).join('')
     : '<span class="muted small">No sites blocked.</span>';
 }
 
@@ -422,6 +433,7 @@ async function addDomain(d) {
   renderSettings();
 }
 async function removeSite(d) {
+  if (blockingNow()) return toast("Sites can't be removed while blocking is on");
   state.settings = await patch('settings', { sites: state.settings.sites.filter((s) => s !== d) });
   renderSettings();
 }
@@ -747,7 +759,12 @@ function renderSettings() {
   const pledgeRows = WALLET_ENABLED ? renderWalletRows() : '';
   $('wallet-rows').innerHTML = pledgeRows;
   $('wallet-rows').hidden = !pledgeRows;
-  renderChips($('set-sites'), settings.sites);
+  const live = blockingNow();
+  renderChips($('set-sites'), settings.sites, !!live);
+  $('sites-note').innerHTML = live
+    ? `${LOCK_SVG}<span><b>Blocking is on${live.end >= NO_END ? '' : ' until ' + fmtTime(live.end)}.</b> You can add sites now, but you can't remove any until it ends.</span>`
+    : '';
+  $('sites-note').hidden = !live;
   setRadio('[data-ow]', 'ow', settings.overrideWait);
   const blk = state.block;
   renderBlockNow();
