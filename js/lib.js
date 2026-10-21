@@ -24,6 +24,7 @@ export const DEFAULT_SETTINGS = {
   nudgeLeadMin: 10,
   nudgeSound: true,
   calendarBlock: true,
+  sessionBlock: true,
   googleClientId: '',
   walletApi: '',
   pledge: 50,

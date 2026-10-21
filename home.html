@@ -156,8 +156,8 @@
     </div>
 
     <div class="field">
-      <span class="label">Blocked during calendar tasks</span>
-      <span class="muted small">Not blocked in the focus circle. Blocking starts when a Google Calendar task starts and ends when it ends.</span>
+      <span class="label">Blocked while you focus</span>
+      <span class="muted small">Blocked from when you leave the focus circle until the timer ends, and during Google Calendar tasks.</span>
       <div class="chips" id="setup-sites"></div>
       <div class="add-row">
         <input class="input" id="setup-site-input" placeholder="Start typing a site, like insta or netflix" autocomplete="off" aria-label="Add a blocked site">
@@ -208,6 +208,7 @@
   <div class="card pad set-sec">
     <h2 class="h2">Blocked sites</h2>
     <p class="muted small">Redirected to a calm block page from the start to the end of each Google Calendar task. The focus circle never blocks anything.</p>
+    <div class="toggle-row"><div><b id="t-sessblock-l">Block during focus sessions</b><span class="muted small">From when you leave the focus circle until the timer ends.</span></div><button class="switch" role="switch" data-toggle="sessionBlock" aria-labelledby="t-sessblock-l"></button></div>
     <div class="toggle-row"><div><b id="t-calblock-l">Block during calendar tasks</b><span class="muted small" id="block-state">Needs Google Calendar connected.</span></div><button class="switch" role="switch" data-toggle="calendarBlock" aria-labelledby="t-calblock-l"></button></div>
     <div class="int-actions" id="block-actions"></div>
     <div class="chips" id="set-sites"></div>

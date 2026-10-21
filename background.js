@@ -1,7 +1,7 @@
 // Still service worker: owns the session timer, calendar-task site blocking,
 // capture window, toolbar badge, audio routing and calendar nudges.
-// The focus session (circle + timer) only primes the mind and never blocks.
-// Sites are blocked from a synced calendar task's start to its end.
+// The focus circle only primes the mind and never blocks. Sites are blocked while a focus
+// session's timer runs, and from a synced calendar task's start to its end.
 import { applySession, localOffset } from './js/progress.js';
 import { getAll, patch, kindOf, uid, normalizeDomain, fmtTime, rupees, pledgeArmed, GOOGLE_CLIENT_ID, WALLET_API } from './js/lib.js';
 
@@ -69,7 +69,7 @@ chrome.storage.onChanged.addListener(async (changes, area) => {
     // Keep the live block in step with the Settings list and toggle. A task with a
     // live pledge keeps blocking until it ends: turning blocking off is not a way out.
     const { block, settings } = await getAll();
-    if (block && !settings.calendarBlock && !pledgeArmed(block)) await endBlock();
+    if (block && !blockAllowed(block, settings) && !pledgeArmed(block)) await endBlock();
     else if (block) await applyBlocking(blockSites(block, settings));
     else if (settings.calendarBlock) await checkBlockNow();
   }
@@ -188,6 +188,8 @@ async function beginWork(fromTabId) {
     session.endsAt = session.startedAt + session.plannedMin * 60000;
     await chrome.storage.local.set({ session });
     chrome.alarms.create('session-end', { when: session.endsAt });
+    // The work part of a focus session blocks the same sites a calendar task does.
+    await startBlock({ id: 'session:' + session.id, title: session.task, start: session.startedAt, end: session.endsAt, session: true });
   }
   await chrome.storage.session.remove('circleTabId');
   if (fromTabId != null && !(await leaveTab(fromTabId))) {
@@ -247,6 +249,12 @@ async function adjustTime(deltaMin) {
     session.endsAt = Math.max(Date.now() + 60000, session.endsAt + deltaMin * 60000);
     session.plannedMin = Math.max(1, Math.round((session.endsAt - session.startedAt) / 60000));
     chrome.alarms.create('session-end', { when: session.endsAt });
+    const { block } = await getAll();
+    if (block && block.eventId === 'session:' + session.id) {
+      block.end = session.endsAt;
+      await chrome.storage.local.set({ block });
+      chrome.alarms.create('block-end', { when: block.end });
+    }
   }
   await chrome.storage.local.set({ session });
   return session;
@@ -291,9 +299,14 @@ async function scorePoints(session, reason) {
 }
 
 async function endSessionNow(reason, opts) {
-  const { session, settings } = await getAll();
+  const { session, settings, block } = await getAll();
   chrome.alarms.clear('session-end');
   if (!session) return null;
+  // The session's own block ends with it; its counts go into the summary.
+  if (block && block.eventId === 'session:' + session.id) {
+    Object.assign(session, { impulses: block.impulses, overrides: block.overrides, blocked: block.sites || [] });
+    await endBlock();
+  }
   const now = Date.now();
   const focusedMs = session.phase === 'working' ? Math.min(now, session.endsAt) - session.startedAt : 0;
   const summary = {
@@ -485,10 +498,14 @@ async function allowOnce(url, tabId) {
 
 // ---------- calendar-task blocking ----------
 
-// Starts (or extends) the block for a calendar task that is running now.
+function blockAllowed(e, settings) {
+  return e.session ? settings.sessionBlock !== false : !!settings.calendarBlock;
+}
+
+// Starts (or extends) the block for a calendar task or focus session that is running now.
 async function startBlock(e) {
   const { block, settings } = await getAll();
-  if (!settings.calendarBlock || !(e.end > Date.now())) return block;
+  if (!blockAllowed(e, settings) || !(e.end > Date.now())) return block;
   if (block && block.end > Date.now()) {
     if (e.end > block.end) {
       block.end = e.end;
@@ -507,8 +524,10 @@ async function startBlock(e) {
     impulses: 0,
     overrides: 0,
     test: !!e.test,
+    session: !!e.session,
     sites: settings.sites.slice(),
-    ...(await pledgeFor(e, settings))
+    // Pledges belong to calendar tasks; a focus session's block never puts money on the line.
+    ...(e.session ? { pledge: 0 } : await pledgeFor(e, settings))
   };
   await chrome.storage.local.set({ block: next });
   await applyBlocking(settings.sites);
@@ -518,7 +537,7 @@ async function startBlock(e) {
   chrome.notifications.create(id, {
     type: 'basic',
     iconUrl: ICON,
-    title: e.title + ' has started',
+    title: e.session ? 'Focus started: ' + e.title : e.title + ' has started',
     message: 'Distracting sites are blocked until ' + fmtTime(next.end) + '.' + stake,
     silent: true,
     priority: 0
@@ -533,7 +552,8 @@ async function endBlock() {
   const { block } = await getAll();
   if (!block) return null;
   await chrome.storage.local.set({ block: null });
-  if (!block.test) {
+  // Focus sessions log their own history entry when they end.
+  if (!block.test && !block.session) {
     const { history } = await chrome.storage.local.get('history');
     const entry = {
       kind: 'calendar',
@@ -1045,7 +1065,12 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
   } else if (alarm.name === 'block-end') {
     const { block } = await getAll();
     if (block && block.end > Date.now() + 1000) chrome.alarms.create('block-end', { when: block.end });
-    else await endBlock();
+    else if (block && block.session) {
+      // A focus session's block ends with the session, so its counts reach the summary.
+      const { session } = await getAll();
+      if (session && block.eventId === 'session:' + session.id) await endSession('timeup');
+      else await endBlock();
+    } else await endBlock();
   }
 });
 
