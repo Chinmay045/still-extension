@@ -3,6 +3,7 @@
 // The focus circle only primes the mind and never blocks. Sites are blocked while a focus
 // session's timer runs, and from a synced calendar task's start to its end.
 import { applySession, localOffset } from './js/progress.js';
+import { readBackup, mergeBackup } from './js/backup.js';
 import { getAll, patch, kindOf, uid, normalizeDomain, fmtTime, untilText, NO_END, rupees, pledgeArmed, BUILD, GOOGLE_CLIENT_ID, WALLET_API, WALLET_ENABLED, THEMES, SOUNDS } from './js/lib.js';
 
 const CAPTURE_W = 360;
@@ -1255,6 +1256,18 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
 
 // ---------- messages ----------
 
+// Merges a backup file from another browser into this one. Runs here because only
+// the worker writes progress.
+async function importBackup(json) {
+  const data = readBackup(json);
+  if (!data) return { ok: false, error: 'not-a-backup' };
+  const cur = await getAll();
+  const { values, added } = mergeBackup(cur, data);
+  await chrome.storage.local.set(values);
+  updateBadge();
+  return { ok: true, added };
+}
+
 const handlers = {
   startSession: (m) => startSession(m.config || {}),
   beginWork: (m, sender) => beginWork(sender.tab ? sender.tab.id : null),
@@ -1273,6 +1286,7 @@ const handlers = {
   endBlock: () => endBlock(),
   stopBlock: (m) => stopBlock(!!m.forfeit),
   ping: () => ({ build: BUILD }),
+  importBackup: (m) => importBackup(m.json),
   blockNow: (m) => blockNow(Number(m.minutes) || 0, !!m.strict),
   extendManual: (m) => extendManual(Number(m.minutes) || 15),
   stopManual: () => stopManual(),

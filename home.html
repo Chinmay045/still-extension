@@ -330,6 +330,18 @@
   </div>
 
   <div class="card pad set-sec">
+    <h2 class="h2">Your data</h2>
+    <div class="int-row data-row">
+      <div><b>Move to another browser</b><span class="muted small">Export saves your sessions, points, streaks, Bucket and blocked sites as a file. Import it in Still on another browser to bring them over. Importing adds to what's there and never deletes anything.</span></div>
+      <div class="int-actions">
+        <button type="button" class="btn btn-sm" id="export-data">Export</button>
+        <button type="button" class="btn btn-sm" id="import-data">Import</button>
+        <input type="file" id="import-file" accept=".json,application/json" hidden>
+      </div>
+    </div>
+  </div>
+
+  <div class="card pad set-sec">
     <h2 class="h2">Shortcut</h2>
     <div class="toggle-row">
       <div><b>Capture thought</b><span class="muted small">Opens the capture box from any tab and saves to your Bucket. Option+P on Mac.</span></div>

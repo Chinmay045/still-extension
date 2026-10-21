@@ -1,5 +1,6 @@
 import { attachSuggest } from './site-suggest.js';
 import { BUILD, untilText, NO_END, GOOGLE_CLIENT_ID, WALLET_API, WALLET_ENABLED, PLEDGES, CHARITIES, rupees, pledgeArmed, getAll, patch, send, esc, stillify, fmtWhen, fmtTime, ageDays, normalizeDomain, reducedMotion, KINDS, SOUNDS, THEMES } from './lib.js';
+import { BACKUP_KEYS, makeBackup } from './backup.js';
 import { mountVolume } from './volume.js';
 import { SCORING, summarize, encouragement, localOffset, dayKey, dayNumber, keyFromNumber } from './progress.js';
 import { mountSession } from './session-ui.js';
@@ -906,6 +907,31 @@ async function connectWithClientId() {
 }
 $('client-connect').addEventListener('click', connectWithClientId);
 $('client-id').addEventListener('keydown', (e) => { if (e.key === 'Enter') connectWithClientId(); });
+
+// ---------- your data ----------
+$('export-data').addEventListener('click', async () => {
+  const stored = await chrome.storage.local.get(BACKUP_KEYS);
+  const blob = new Blob([JSON.stringify(makeBackup(stored, Date.now()), null, 1)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'still-backup-' + new Date().toISOString().slice(0, 10) + '.json';
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  toast('Backup saved to your downloads');
+});
+$('import-data').addEventListener('click', () => $('import-file').click());
+$('import-file').addEventListener('change', async (e) => {
+  const file = e.target.files && e.target.files[0];
+  e.target.value = '';
+  if (!file) return;
+  const r = await send('importBackup', { json: await file.text() });
+  if (!r || !r.ok) return toast("That file isn't a Still backup");
+  const { sessions, thoughts } = r.added;
+  const parts = [];
+  if (sessions) parts.push(sessions + (sessions === 1 ? ' session' : ' sessions'));
+  if (thoughts) parts.push(thoughts + (thoughts === 1 ? ' thought' : ' thoughts'));
+  toast(parts.length ? 'Added ' + parts.join(' and ') : 'Already up to date');
+});
 
 $('change-shortcut').addEventListener('click', () => chrome.tabs.create({ url: 'chrome://extensions/shortcuts' }));
 chrome.commands.getAll().then((cmds) => {
