@@ -21,6 +21,11 @@ chrome.runtime.onInstalled.addListener(async (details) => {
     if (!all.settings.sites.includes('instagram.com')) all.settings.sites.push('instagram.com');
     all.settings.sitesV2 = true;
   }
+  if (!all.settings.bucketV2) {
+    // Blocked-site URLs used to be saved to the Bucket. They no longer are; clear the old ones.
+    all.parked = all.parked.filter((p) => p.source !== 'block');
+    all.settings.bucketV2 = true;
+  }
   if (!all.prefs.lenV2) {
     // The presets moved from 25/50 to 10/15 minutes; old picks move to the new default.
     if ([25, 50].includes(all.prefs.plannedMin)) all.prefs.plannedMin = 10;
@@ -410,11 +415,10 @@ async function addParked(text, source) {
   const t = String(text || '').trim();
   if (!t) return null;
   const { parked, session } = await getAll();
-  if (source === 'block' && parked.some((p) => p.status === 'new' && p.text === t)) return null;
   const item = { id: uid(), text: t, kind: kindOf(t), status: 'new', createdAt: Date.now(), source: source || 'manual' };
   parked.push(item);
   await chrome.storage.local.set({ parked });
-  if (session && source !== 'block') {
+  if (session) {
     session.parkedCount += 1;
     await chrome.storage.local.set({ session });
   }
@@ -452,8 +456,8 @@ async function blockedHit(url) {
   if (!block) return { active: false };
   block.impulses += 1;
   await chrome.storage.local.set({ block });
-  await addParked(url, 'block');
-  return { active: true, impulses: block.impulses, parked: true };
+  // Blocked sites are only counted, never saved: the Bucket is for the user's own thoughts.
+  return { active: true, impulses: block.impulses };
 }
 
 async function allowOnce(url, tabId) {

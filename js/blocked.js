@@ -21,11 +21,6 @@ async function init() {
   $('task').hidden = false;
 
   const res = url ? await send('blockedHit', { url }) : null;
-  if (url) {
-    $('note').textContent = 'Saved to your bucket for later · ' + url;
-    $('note').title = url;
-    $('note').hidden = false;
-  }
   const n = res && res.impulses ? res.impulses : block.impulses;
   $('count').textContent = n + ' blocked during this task';
 

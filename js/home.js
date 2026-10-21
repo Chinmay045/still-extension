@@ -422,7 +422,7 @@ function renderBucket() {
       <div class="card review">
         <div class="rev-top"><b>Review</b><span class="rev-pos">${reviewed + 1} of ${total}</span></div>
         <div class="progress" role="progressbar" aria-valuemin="0" aria-valuemax="${total}" aria-valuenow="${reviewed}" aria-label="Review progress"><i style="width:${(reviewed / total) * 100}%"></i></div>
-        <div class="rev-meta"><span class="kind kind-${p.kind}">${k.label}</span><span>Parked ${esc(fmtWhen(p.createdAt))}${p.source === 'block' ? ' · from block page' : ''}</span></div>
+        <div class="rev-meta"><span class="kind kind-${p.kind}">${k.label}</span><span>Parked ${esc(fmtWhen(p.createdAt))}</span></div>
         <div class="rev-text">${p.kind === 'link' ? linkify(p.text) : esc(p.text)}</div>
         <div class="rev-actions">
           <button class="btn btn-primary" data-rev="next" data-id="${esc(p.id)}">Next task</button>
