@@ -17,7 +17,7 @@ if (!session) {
     : next && settings.calendarBlock ? 'Sites get blocked when ' + next.title + ' starts at ' + fmtTime(next.start) + '.' : '';
   const pr = summarize(progress, Date.now(), localOffset(Date.now()));
   $('streak').textContent = pr.currentStreak
-    ? pr.currentStreak + '-day streak · ' + pr.todayPoints + ' points today'
+    ? pr.currentStreak + '-day streak'
     : 'Finish ' + SCORING.minEligibleMinutes + ' minutes or more to start a streak.';
   render();
   // The timer runs from the moment Focus is pressed. A session from an older version may

@@ -6,13 +6,13 @@ export function mountSession(el) {
   let session = null;
   let shortcut = 'Alt+P';
   let progressText = '';
-  // A quiet line under the timer: the streak and today's points, nothing more.
+  // A quiet line under the timer: the streak, nothing more.
   const loadProgress = async () => {
     const { progress } = await chrome.storage.local.get('progress');
     const now = Date.now();
     const p = summarize(progress, now, localOffset(now));
     progressText = p.currentStreak
-      ? p.currentStreak + '-day streak · ' + p.todayPoints + ' points today'
+      ? p.currentStreak + '-day streak'
       : 'Finish ' + SCORING.minEligibleMinutes + ' minutes or more to start a streak';
     const el2 = el.querySelector('.s-progress');
     if (el2) el2.textContent = progressText;

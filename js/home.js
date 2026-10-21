@@ -957,23 +957,20 @@ function renderSummary() {
     return;
   }
   const done = s.reason === 'timeup';
-  const earned = done && s.eligible && s.points > 0;
+  const earned = done && s.eligible;
   const pr = progressNow();
-  // Points only show for sessions that can earn them; older summaries have no points field.
-  const pointsNote = !('points' in s) ? ''
-    : earned ? ''
-    : done ? 'Sessions under ' + SCORING.minEligibleMinutes + ' minutes don’t earn points. Anything you’ve already earned stays.'
-    : 'Ended early, so no points this time. Anything you’ve already earned stays.';
+  // Only completed sessions of the minimum length count toward a streak.
+  const streakNote = earned || !('eligible' in s) ? ''
+    : done ? 'Sessions under ' + SCORING.minEligibleMinutes + ' minutes don’t count toward your streak.'
+    : '';
   const mark = earned
     ? `<svg class="done-mark" viewBox="0 0 80 80" aria-hidden="true"><defs><linearGradient id="dm-g" x1="0" x2="1"><stop offset="0" stop-color="#8B3DFF"/><stop offset="1" stop-color="#D63DD0"/></linearGradient></defs><circle class="dm-track" cx="40" cy="40" r="34"/><circle class="dm-ring" cx="40" cy="40" r="34"/><path class="dm-check" d="M27 41l9 9 17-19"/></svg>`
     : '<img src="assets/ring.png" alt="">';
   const progressRows = earned
     ? `<div class="card dash-list sum-progress">
-        ${row('Points earned', s.scoredMinutes + ' minutes completed', `<span class="dash-val pts">+${s.points}</span>`)}
         ${row(streakLabel(pr.currentStreak), esc(encouragement(pr)), '')}
-        ${row('Today', pr.totalPoints + ' points all time', `<span class="dash-val">${pr.todayPoints}</span>`)}
       </div>`
-    : pointsNote ? `<p class="muted small sum-note">${pointsNote}</p>` : '';
+    : streakNote ? `<p class="muted small sum-note">${streakNote}</p>` : '';
   $('summary').innerHTML = `
     <div class="stack-lg">
       <div class="sum-head">
@@ -1031,6 +1028,8 @@ function insightData() {
   const completed = focus.filter((h) => h.reason === 'timeup');
   const early = focus.filter((h) => h.reason !== 'timeup');
   const totalMin = hist.reduce((n, h) => n + (h.minutesFocused || 0), 0);
+  const todayKey = dayKey(now, offset);
+  const todayMin = hist.filter((h) => h.endedAt && dayKey(h.endedAt, localOffset(h.endedAt)) === todayKey).reduce((n, h) => n + (h.minutesFocused || 0), 0);
   const avgMin = completed.length ? Math.round(completed.reduce((n, h) => n + (h.minutesFocused || 0), 0) / completed.length) : 0;
   const impulses = hist.reduce((n, h) => n + (h.impulses || 0), 0);
   const overrides = hist.reduce((n, h) => n + (h.overrides || 0), 0);
@@ -1072,7 +1071,7 @@ function insightData() {
 
   return {
     pr, completed: completed.length, early: early.length, sessions: focus.length,
-    calendar: hist.length - focus.length, totalMin, avgMin, impulses, overrides,
+    calendar: hist.length - focus.length, totalMin, todayMin, avgMin, impulses, overrides,
     byDay, first, today, fortnight, parts, parked: (state.parked || []).length,
     recent: hist.slice(-4).reverse()
   };
@@ -1140,8 +1139,8 @@ function renderInsights() {
   const t = fmtMin(d.totalMin);
   const kpi = (val, unit, label, cls) => `<div class="tile-b b-kpi${cls ? ' ' + cls : ''}"><div class="b-kv"><b>${val}</b>${unit ? `<span>${unit}</span>` : ''}</div><div class="b-label">${label}</div></div>`;
   const kpis = `<div class="b-kpis">
-    ${kpi(pr.totalPoints, 'pts', 'Total points', 'pts')}
-    ${kpi(t.n, t.u, 'Time focused')}
+    ${kpi(fmtMin(d.todayMin).n, fmtMin(d.todayMin).u, 'Focused today', 'pts')}
+    ${kpi(t.n, t.u, 'Total time focused')}
     ${kpi(d.avgMin, 'min', 'Average session')}
     ${kpi(d.parked, '', d.parked === 1 ? 'Thought in bucket' : 'Thoughts in bucket')}
   </div>`;
@@ -1317,7 +1316,7 @@ renderNav();
 route();
 document.querySelectorAll('.still-auto').forEach((el) => { el.innerHTML = stillify(el.textContent); });
 
-// "How points work" closes when you click anywhere else or press Esc.
+// "How streaks work" closes when you click anywhere else or press Esc.
 document.addEventListener('click', (e) => {
   const how = document.querySelector('.ins-how[open]');
   if (how && !how.contains(e.target)) how.open = false;

@@ -59,7 +59,7 @@ Still helps you focus on one task at a time: it times a focus session, blocks th
 
 | Permission | Justification |
 |---|---|
-| storage | Saves the user's settings, focus sessions, parked thoughts, points and streaks locally on the device. |
+| storage | Saves the user's settings, focus sessions, parked thoughts and streaks locally on the device. |
 | alarms | Ends focus sessions and site blocks on time, schedules calendar nudges, and refreshes upcoming calendar events. |
 | notifications | Tells the user when blocking starts and when a calendar event is about to begin. |
 | declarativeNetRequest | Redirects the websites the user has chosen to block to Still's calm block page while a focus session or block is running. |
