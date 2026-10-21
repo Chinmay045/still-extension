@@ -7,6 +7,11 @@ export const DEFAULT_SITES = ['youtube.com', 'x.com', 'instagram.com', 'reddit.c
 // connect with one Google sign-in and never see any setup.
 export const GOOGLE_CLIENT_ID = '287087142246-v8qephktt73vi27gacha358kc6ibvlkt.apps.googleusercontent.com';
 
+// Focus wallet and charity pledges are parked for a later version. While this is false the
+// wallet is hidden from Settings, no task carries a pledge and the block page never asks for
+// money. The code (and backend/) stays so it can come back by flipping this to true.
+export const WALLET_ENABLED = false;
+
 // The focus wallet server (the Next.js app in backend/), for example
 // https://still-wallet.vercel.app. Empty until it is deployed; Settings can also hold one.
 export const WALLET_API = '';
@@ -117,7 +122,7 @@ export function rupees(paise) {
 
 // A calendar task's pledge is live once the block starts with enough money in the wallet.
 export function pledgeArmed(block) {
-  return !!(block && block.pledge > 0 && !block.forfeited);
+  return !!(WALLET_ENABLED && block && block.pledge > 0 && !block.forfeited);
 }
 
 export function fmtClock(ms) {

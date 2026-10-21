@@ -35,7 +35,7 @@ async function init() {
     $('open').addEventListener('click', () => showConfirm(block, wallet, host));
     return;
   }
-  if (block.forfeited) {
+  if (pledgeArmed(Object.assign({}, block, { forfeited: false })) && block.forfeited) {
     $('stake-title').textContent = 'You broke this task earlier';
     $('stake-sub').textContent = rupees(block.pledge * 100) + ' left your wallet for ' + block.charity + '. Nothing more is taken for this task.';
     $('stake-amt').textContent = '−' + rupees(block.pledge * 100);

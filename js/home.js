@@ -1,5 +1,5 @@
 import { attachSuggest } from './site-suggest.js';
-import { GOOGLE_CLIENT_ID, WALLET_API, PLEDGES, CHARITIES, rupees, pledgeArmed, getAll, patch, send, esc, stillify, fmtWhen, fmtTime, ageDays, normalizeDomain, reducedMotion, KINDS, SOUNDS, THEMES } from './lib.js';
+import { GOOGLE_CLIENT_ID, WALLET_API, WALLET_ENABLED, PLEDGES, CHARITIES, rupees, pledgeArmed, getAll, patch, send, esc, stillify, fmtWhen, fmtTime, ageDays, normalizeDomain, reducedMotion, KINDS, SOUNDS, THEMES } from './lib.js';
 import { mountVolume } from './volume.js';
 import { SCORING, summarize, encouragement, localOffset } from './progress.js';
 import { mountSession } from './session-ui.js';
@@ -33,7 +33,7 @@ function route() {
 
 function renderView(name) {
   const w = state.wallet;
-  if (name === 'settings' && w.signedIn && !(Date.now() - (w.lastSync || 0) < 60000)) send('walletRefresh');
+  if (WALLET_ENABLED && name === 'settings' && w.signedIn && !(Date.now() - (w.lastSync || 0) < 60000)) send('walletRefresh');
   if (name === 'home') renderHome();
   if (name === 'setup') renderSetup();
   if (name === 'bucket') renderBucket();
@@ -512,7 +512,7 @@ function setRadio(selector, attr, value) {
 
 function renderSettings() {
   const { settings, calendar } = state;
-  const pledgeRows = renderWalletRows();
+  const pledgeRows = WALLET_ENABLED ? renderWalletRows() : '';
   $('wallet-rows').innerHTML = pledgeRows;
   $('wallet-rows').hidden = !pledgeRows;
   renderChips($('set-sites'), settings.sites);
@@ -525,7 +525,8 @@ function renderSettings() {
   $('block-actions').innerHTML = blk
     ? stopButton()
     : '<button class="btn btn-sm" type="button" data-blk="test">Test blocking for 2 minutes</button>';
-  renderWalletSettings();
+  $('wallet').hidden = !WALLET_ENABLED;
+  if (WALLET_ENABLED) renderWalletSettings();
   setRadio('[data-lead]', 'lead', settings.nudgeLeadMin);
   document.querySelectorAll('[data-toggle]').forEach((b) => b.setAttribute('aria-checked', String(!!settings[b.dataset.toggle])));
 

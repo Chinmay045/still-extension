@@ -3,7 +3,7 @@
 // The focus circle only primes the mind and never blocks. Sites are blocked while a focus
 // session's timer runs, and from a synced calendar task's start to its end.
 import { applySession, localOffset } from './js/progress.js';
-import { getAll, patch, kindOf, uid, normalizeDomain, fmtTime, rupees, pledgeArmed, GOOGLE_CLIENT_ID, WALLET_API } from './js/lib.js';
+import { getAll, patch, kindOf, uid, normalizeDomain, fmtTime, rupees, pledgeArmed, GOOGLE_CLIENT_ID, WALLET_API, WALLET_ENABLED } from './js/lib.js';
 
 const CAPTURE_W = 360;
 const CAPTURE_H = 400;
@@ -698,6 +698,7 @@ async function walletOpen(hash) {
 // Decides a new task's pledge: its own amount if set in Settings, else the default.
 // Only armed when the wallet can cover it, so a pledge is never an empty threat.
 async function pledgeFor(e, settings) {
+  if (!WALLET_ENABLED) return { pledge: 0 };
   const { wallet, pledges } = await getAll();
   if (!wallet.signedIn) return { pledge: 0 };
   const want = e.id in pledges ? Number(pledges[e.id]) : Number(settings.pledge);
