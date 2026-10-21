@@ -19,3 +19,9 @@
 .sess .btn kbd { background: var(--g1); color: var(--g5); }
 .sess .btn-primary kbd { background: rgba(255, 255, 255, .25); color: #FFFFFF; }
 .sess .s-progress { font-size: 12.5px; color: var(--g5); }
+.sess .s-circles { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.sess .s-circles [data-theme] { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 10px 0 4px; border: 1px solid var(--g2); border-radius: 999px; background: #FFFFFF; font-size: 12.5px; color: var(--g4); }
+.sess .s-circles [data-theme] img { width: 24px; height: 24px; border-radius: 50%; background: #000; display: block; }
+.sess .s-circles [data-theme]:hover { background: var(--lav); }
+.sess .s-circles [data-theme][aria-checked="true"] { border-color: var(--v3); color: var(--v3); font-weight: 600; background: var(--lav); }
+.sess .s-circles .s-open { height: 34px; padding: 0 12px; border: 0; border-radius: 999px; background: transparent; color: var(--v3); font-size: 12.5px; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }

@@ -171,13 +171,13 @@ async function startSession(cfg) {
   await patch('prefs', { task: '', fromCalendar: false });
   await audio('audio-play', { sound: session.sound, volume: session.volume });
 
+  // Focus starts the timer at once; the circle opens alongside it to breathe with.
+  const running = await beginWork();
   if (settings.autoCircle || cfg.circle) {
     const tab = await chrome.tabs.create({ url: 'focus.html' });
     await chrome.storage.session.set({ circleTabId: tab.id });
-  } else {
-    await beginWork();
   }
-  return session;
+  return running || session;
 }
 
 async function beginWork(fromTabId) {
@@ -222,10 +222,10 @@ async function leaveTab(tabId) {
   return false;
 }
 
-// One-click Exit from the focus circle: end quietly and go back to work.
+// Back to work from the focus circle: the timer keeps running, the circle tab closes.
 async function exitCircle(tabId) {
   await chrome.storage.session.remove('circleTabId');
-  await endSession('exit', { silent: true });
+  await beginWork(); // a session from before the timer started on Focus
   if (tabId != null && !(await leaveTab(tabId))) {
     await chrome.tabs.update(tabId, { url: 'chrome://newtab/' }).catch(() => {});
   }
@@ -269,6 +269,32 @@ async function setSound(sound) {
   await chrome.storage.local.set({ session });
   if (sound === 'off') await audio('audio-stop');
   else await audio('audio-play', { sound, volume: session.volume });
+  return session;
+}
+
+// Brings the focus circle back during a session: the open circle tab, or a new one.
+async function openCircle() {
+  const { session } = await getAll();
+  if (!session) return null;
+  const { circleTabId } = await chrome.storage.session.get('circleTabId');
+  const open = circleTabId != null && (await chrome.tabs.get(circleTabId).catch(() => null));
+  if (open) {
+    await chrome.tabs.update(open.id, { active: true });
+    await chrome.windows.update(open.windowId, { focused: true }).catch(() => {});
+    return { ok: true };
+  }
+  const tab = await chrome.tabs.create({ url: 'focus.html' });
+  await chrome.storage.session.set({ circleTabId: tab.id });
+  return { ok: true };
+}
+
+async function setTheme(theme) {
+  if (!THEMES.some((t) => t.id === theme)) return null;
+  const { session } = await getAll();
+  await patch('prefs', { theme });
+  if (!session) return null;
+  session.theme = theme;
+  await chrome.storage.local.set({ session });
   return session;
 }
 
@@ -1088,6 +1114,8 @@ const handlers = {
   beginWork: (m, sender) => beginWork(sender.tab ? sender.tab.id : null),
   adjustTime: (m) => adjustTime(Number(m.deltaMin) || 0),
   setSound: (m) => setSound(m.sound),
+  setTheme: (m) => setTheme(m.theme),
+  openCircle: () => openCircle(),
   setVolume: (m) => setVolume(Number(m.volume)),
   endSession: () => endSession('exit'),
   exitCircle: (m, sender) => exitCircle(sender.tab ? sender.tab.id : null),

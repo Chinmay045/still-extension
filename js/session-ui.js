@@ -1,5 +1,5 @@
 // In-session controls: timer with -5 / +5, music, Capture thought, Exit focus.
-import { send, fmtClock, esc, SOUNDS } from './lib.js';
+import { send, fmtClock, esc, SOUNDS, THEMES } from './lib.js';
 import { summarize, localOffset, SCORING } from './progress.js';
 
 export function mountSession(el) {
@@ -56,6 +56,13 @@ export function mountSession(el) {
           ${SOUNDS.map((s) => `<button role="radio" aria-checked="${s.id === session.sound}" data-sound="${s.id}"><span class="dot"></span>${esc(s.name)}</button>`).join('')}
         </div>
       </div>
+      <div class="s-sec">
+        <span class="label">Focus circle</span>
+        <div class="s-circles" role="radiogroup" aria-label="Focus circle">
+          ${THEMES.map((t) => `<button role="radio" aria-checked="${t.id === session.theme}" data-theme="${t.id}" title="${esc(t.desc)}"><img src="assets/${t.id}-thumb.jpg" alt="">${esc(t.name)}</button>`).join('')}
+          <button class="s-open" data-act="circle">Open circle</button>
+        </div>
+      </div>
       <div class="s-row">
         <button class="btn" data-act="park">Capture thought <kbd>${esc(shortcut)}</kbd></button>
         <button class="btn btn-primary" data-act="exit">Exit focus</button>
@@ -67,9 +74,11 @@ export function mountSession(el) {
     if (!b) return;
     if (b.dataset.adj) session = (await send('adjustTime', { deltaMin: Number(b.dataset.adj) })) || session;
     else if (b.dataset.sound) session = (await send('setSound', { sound: b.dataset.sound })) || session;
+    else if (b.dataset.theme) session = (await send('setTheme', { theme: b.dataset.theme })) || session;
+    else if (b.dataset.act === 'circle') { send('openCircle'); return; }
     else if (b.dataset.act === 'park') { send('openCapture'); return; }
     else if (b.dataset.act === 'exit') { send('endSession'); return; }
-    const focusKey = b.dataset.adj ? `[data-adj="${b.dataset.adj}"]` : `[data-sound="${b.dataset.sound}"]`;
+    const focusKey = b.dataset.adj ? `[data-adj="${b.dataset.adj}"]` : b.dataset.theme ? `[data-theme="${b.dataset.theme}"]` : `[data-sound="${b.dataset.sound}"]`;
     render();
     const again = el.querySelector(focusKey);
     if (again) again.focus();
@@ -82,7 +91,7 @@ export function mountSession(el) {
 
   return {
     update(s) {
-      const changed = !session || !s || session.sound !== s.sound || session.phase !== s.phase || session.task !== s.task;
+      const changed = !session || !s || session.sound !== s.sound || session.theme !== s.theme || session.phase !== s.phase || session.task !== s.task;
       session = s;
       if (changed) render();
       else { const c = el.querySelector('.s-clock'); if (c) c.textContent = clockText(); }

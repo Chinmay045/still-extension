@@ -282,7 +282,7 @@ function renderSetup() {
   previewEngine.setVolume(prefs.volume);
 
   renderChips($('setup-sites'), settings.sites);
-  $('start-note').textContent = settings.autoCircle ? 'The focus circle opens first. Click it to begin.' : 'Work starts right away.';
+  $('start-note').textContent = settings.autoCircle ? 'The timer starts right away and the focus circle opens with it.' : 'The timer starts right away.';
 }
 
 function renderChips(el, sites) {

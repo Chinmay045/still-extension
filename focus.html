@@ -15,7 +15,13 @@
     background: transparent; color: #FFFFFF; font-weight: 500; font-size: 14px;
   }
   .exit:hover { background: rgba(255, 255, 255, .1); }
+  .tops { display: flex; gap: 8px; }
+  .clock { font-family: 'Inter Tight', sans-serif; font-size: 44px; font-weight: 300; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; color: rgba(255, 255, 255, .92); margin-top: -8px; }
+  .thm { width: 34px; height: 34px; padding: 0; border-radius: 50%; border: 0; background: #000; box-shadow: 0 0 0 1px rgba(255, 255, 255, .2); }
+  .thm img { width: 100%; height: 100%; border-radius: 50%; display: block; }
+  .thm[aria-checked="true"] { box-shadow: 0 0 0 2px #000, 0 0 0 4px #FFFFFF; }
   .wrap { flex: 1; min-height: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px; padding: 0 24px; text-align: center; }
+  .wrap { gap: 18px; }
   .task { font-family: 'Inter Tight', sans-serif; font-size: 28px; font-weight: 500; letter-spacing: -0.03em; max-width: 720px; }
   .circle {
     width: min(46vh, 70vw); height: min(46vh, 70vw); border: 0; padding: 0; border-radius: 50%; flex: none;
@@ -47,7 +53,7 @@
   }
   .chipb[aria-checked="true"] { background: #FFFFFF; border-color: #FFFFFF; color: #2A1458; font-weight: 600; }
   .vol { width: 96px; accent-color: #9B4DF5; }
-  @media (max-width: 1180px) { .sep { display: none; } }
+  @media (max-width: 1400px) { .sep { display: none; } }
   @keyframes spin { to { transform: rotate(360deg); } }
   @keyframes breathe { 0%, 100% { transform: scale(0.97); } 50% { transform: scale(1.03); } }
   @media (prefers-reduced-motion: reduce) { .circle, .circle img { animation: none; } }
@@ -55,15 +61,19 @@
 </head>
 <body>
 <header class="top">
-  <span class="eyebrow">Still · get ready</span>
-  <button class="exit" id="exit" type="button">Exit</button>
+  <span class="eyebrow">Still · focusing</span>
+  <div class="tops">
+    <button class="exit" id="back" type="button" title="Close the circle. The timer keeps running.">Back to work</button>
+    <button class="exit" id="end" type="button">End focus</button>
+  </div>
 </header>
 <div class="wrap">
   <div class="task" id="task"></div>
-  <button class="circle" id="circle" aria-label="Begin the timer">
+  <div class="clock" id="clock" role="timer" aria-label="Time left"></div>
+  <div class="circle" id="circle" role="img" aria-label="Focus circle">
     <img id="img" alt="">
-  </button>
-  <div class="hint">Breathe with the circle. Click it, or press Enter, to start the timer.</div>
+  </div>
+  <div class="hint">Your timer is running. Breathe with the circle.</div>
   <div class="meta" id="meta"></div>
   <div class="meta" id="streak"></div>
 </div>
@@ -74,6 +84,11 @@
     <span class="len" id="len" aria-live="polite"></span>
     <button class="step" type="button" data-step="1" aria-label="One minute more">+</button>
     <div class="grp" role="radiogroup" aria-labelledby="len-l" id="presets"></div>
+  </div>
+  <span class="sep" aria-hidden="true"></span>
+  <div class="grp">
+    <span class="lbl" id="circ-l">Circle</span>
+    <div class="grp" role="radiogroup" aria-labelledby="circ-l" id="themes"></div>
   </div>
   <span class="sep" aria-hidden="true"></span>
   <div class="grp">
