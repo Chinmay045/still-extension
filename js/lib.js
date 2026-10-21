@@ -56,7 +56,12 @@ export const SOUNDS = [
 export const THEMES = [
   { id: 'vortex', name: 'Vortex', desc: 'A turning tunnel of light' },
   { id: 'drift', name: 'Drift', desc: 'A soft galaxy swirl, rose to violet' },
-  { id: 'halo', name: 'Halo', desc: 'Fine violet tunnel, warm edges' }
+  { id: 'halo', name: 'Halo', desc: 'Fine violet tunnel, warm edges' },
+  { id: 'ripple', name: 'Ripple', desc: 'Soft rings that turn around a bright centre' },
+  { id: 'radiant', name: 'Radiant', desc: 'Fine rays from a single point' },
+  { id: 'lotus', name: 'Lotus', desc: 'Layered petals, calm and even' },
+  { id: 'orbit', name: 'Orbit', desc: 'Looping orbits, slow and hypnotic' },
+  { id: 'orb', name: 'Orb', desc: 'A glowing sphere with a warm core' }
 ];
 
 export const KINDS = {

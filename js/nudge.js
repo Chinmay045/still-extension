@@ -5,7 +5,7 @@ import { send, fmtTime, getAll, THEMES, SOUNDS } from './lib.js';
 const $ = (id) => document.getElementById(id);
 const eventId = decodeURIComponent(location.hash.slice(1));
 const START_MIN = 10;
-const PICK_H = 540;
+const PICK_H = 640;
 const SHORT_SOUND = { ambient: 'Ambient', gamma: 'Gamma 40 Hz', beta: 'Beta pulse', cafe: 'Cafe', off: 'Silence' };
 let ev = null;
 let picking = false;
