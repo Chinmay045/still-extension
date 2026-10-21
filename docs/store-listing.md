@@ -35,7 +35,7 @@ PRIVATE BY DESIGN
 
 Everything stays on your computer. No account, no tracking, no analytics, no ads. Calendar access is optional and read-only, and event details never leave your browser.
 
-Privacy policy: <your site>/privacy.html
+Privacy policy: https://still-focus-mu.vercel.app/privacy.html
 
 **Screenshots (1280×800), in this order:**
 1. `store-1-focus.png`: Pick one task and a length
@@ -46,9 +46,9 @@ Privacy policy: <your site>/privacy.html
 
 **Small promo tile (440×280):** `store-tile-440x280.png`
 
-**Official URL / Homepage URL:** your website (see LAUNCH.md)
+**Official URL / Homepage URL:** https://still-focus-mu.vercel.app/
 
-**Support URL:** your website, or a mailto link
+**Support URL:** https://still-focus-mu.vercel.app/
 
 ## Privacy practices tab
 
@@ -77,7 +77,7 @@ Tick all three certifications:
 - I do not use or transfer user data for purposes that are unrelated to my item's single purpose.
 - I do not use or transfer user data to determine creditworthiness or for lending purposes.
 
-**Privacy policy URL:** `<your site>/privacy.html`
+**Privacy policy URL:** `https://still-focus-mu.vercel.app/privacy.html`
 
 ## Distribution tab
 
