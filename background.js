@@ -32,6 +32,14 @@ chrome.runtime.onInstalled.addListener(async (details) => {
     all.prefs.lenV2 = true;
   }
   await chrome.storage.local.set({ settings: all.settings, prefs: all.prefs, parked: all.parked });
+  // The day Insights starts counting from: install, or the oldest thing we already have.
+  if (!all.firstUsed) {
+    const seen = [Date.now()]
+      .concat((all.history || []).map((h) => (h.endedAt || 0) - (h.minutesFocused || 0) * 60000))
+      .concat((all.parked || []).map((p) => p.at || p.createdAt || 0))
+      .filter((t) => t > 0);
+    await chrome.storage.local.set({ firstUsed: Math.min(...seen) });
+  }
   chrome.alarms.create('archive', { delayInMinutes: 1, periodInMinutes: 24 * 60 });
   await syncAfterWake();
   if (details.reason === 'install') chrome.tabs.create({ url: 'home.html' });

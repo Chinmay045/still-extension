@@ -815,8 +815,26 @@ function insightData() {
 
   const days = (state.progress && state.progress.days) || {};
   const today = dayNumber(dayKey(now, offset));
-  let lastWeek = 0;
-  for (let n = today - 13; n <= today - 7; n += 1) lastWeek += (days[keyFromNumber(n)] || { minutes: 0 }).minutes;
+  // Every day since the first one Still knows about, from history (all sessions,
+  // not just the ones that earned points).
+  const byDay = {};
+  let first = today;
+  if (state.firstUsed) first = Math.min(first, dayNumber(dayKey(state.firstUsed, localOffset(state.firstUsed))));
+  for (const k of Object.keys(days)) first = Math.min(first, dayNumber(k));
+  for (const h of hist) {
+    if (!h.endedAt) continue;
+    const t = h.endedAt - (h.minutesFocused || 0) * 60000;
+    const k = dayKey(t, localOffset(t));
+    first = Math.min(first, dayNumber(k));
+    const b = byDay[k] || (byDay[k] = { done: 0, early: 0, doneN: 0, earlyN: 0 });
+    if (h.reason === 'timeup' || h.reason === 'calendar') { b.done += h.minutesFocused || 0; b.doneN += 1; }
+    else { b.early += h.minutesFocused || 0; b.earlyN += 1; }
+  }
+  const daily = [];
+  for (let n = Math.min(first, today - 6); n <= today; n += 1) {
+    const k = keyFromNumber(n);
+    daily.push({ key: k, today: n === today, before: n < first, ...(byDay[k] || { done: 0, early: 0, doneN: 0, earlyN: 0 }) });
+  }
   const fortnight = [];
   for (let n = today - 13; n <= today; n += 1) {
     const k = keyFromNumber(n);
@@ -836,7 +854,7 @@ function insightData() {
   return {
     pr, completed: completed.length, early: early.length, sessions: focus.length,
     calendar: hist.length - focus.length, totalMin, avgMin, impulses, overrides,
-    lastWeek, fortnight, parts, parked: (state.parked || []).length,
+    daily, first: keyFromNumber(first), sinceDays: today - first + 1, fortnight, parts, parked: (state.parked || []).length,
     recent: hist.slice(-4).reverse()
   };
 }
@@ -909,27 +927,35 @@ function renderInsights() {
     ${kpi(d.parked, '', d.parked === 1 ? 'Thought in bucket' : 'Thoughts in bucket')}
   </div>`;
 
-  // This week: minutes per day.
-  const max = Math.max(SCORING.minEligibleMinutes * 3, ...pr.week.map((w) => w.minutes));
-  const peak = Math.max(...pr.week.map((w) => w.minutes));
-  const bars = pr.week.map((w) => {
-    const h = w.minutes ? Math.max(4, Math.round((w.minutes / max) * 100)) : 0;
-    const tip = LONGDAY(w.key) + ': ' + (w.minutes ? w.minutes + ' min, ' + plural(w.sessions, 'session') : 'no completed sessions');
-    const label = w.minutes && (w.today || w.minutes === peak) ? `<span class="wk-val">${w.minutes}</span>` : '';
-    return `<div class="wk-col${w.today ? ' today' : ''}" tabindex="0" data-tip="${esc(tip)}" aria-label="${esc(tip)}">
-      <div class="wk-plot">${h ? `<div class="wk-bar" style="height:${h}%">${label}</div>` : '<div class="wk-zero"></div>'}</div>
-      <span class="wk-day">${w.today ? 'Today' : WEEKDAY(w.key)}</span>
+  // Every day since you started: minutes per day, completed and ended early stacked.
+  const dl = d.daily;
+  const max = Math.max(SCORING.minEligibleMinutes * 3, ...dl.map((x) => x.done + x.early));
+  const peak = Math.max(...dl.map((x) => x.done + x.early));
+  const step = Math.ceil(dl.length / 8);
+  const shortDate = (k) => new Date(k + 'T12:00:00Z').toLocaleDateString([], { month: 'short', day: 'numeric', timeZone: 'UTC' });
+  const dayLabel = (x) => (x.today ? 'Today' : dl.length <= 7 ? WEEKDAY(x.key) : shortDate(x.key));
+  const bars = dl.map((x, i) => {
+    const tot = x.done + x.early;
+    const hd = x.done ? Math.max(3, (x.done / max) * 100) : 0;
+    const he = x.early ? Math.max(3, (x.early / max) * 100) : 0;
+    const parts = [];
+    if (x.doneN) parts.push(x.doneN + ' completed');
+    if (x.earlyN) parts.push(x.earlyN + ' ended early');
+    const tip = LONGDAY(x.key) + ': ' + (x.before ? 'before you started' : tot || parts.length ? tot + ' min · ' + parts.join(', ') : 'no sessions');
+    const label = tot && (x.today || tot === peak) && dl.length <= 31 ? `<span class="wk-val" style="bottom:${hd + he}%">${tot}</span>` : '';
+    const showDay = x.today || (dl.length - 1 - i) % step === 0;
+    return `<div class="wk-col${x.today ? ' today' : ''}${x.before ? ' before' : ''}" tabindex="0" data-tip="${esc(tip)}" aria-label="${esc(tip)}">
+      <div class="wk-plot">${tot ? `<div class="wk-stack">${label}${he ? `<div class="wk-bar early" style="height:${he}%"></div>` : ''}${hd ? `<div class="wk-bar" style="height:${hd}%"></div>` : ''}</div>` : '<div class="wk-zero"></div>'}</div>
+      <span class="wk-day">${showDay ? dayLabel(x) : ''}</span>
     </div>`;
   }).join('');
-  let delta = '';
-  if (d.lastWeek && pr.weekMinutes) {
-    const ch = Math.round(((pr.weekMinutes - d.lastWeek) / d.lastWeek) * 100);
-    delta = `<span class="chip ${ch >= 0 ? 'up' : 'down'}">${ch >= 0 ? '↑' : '↓'} ${Math.abs(ch)}% vs last week</span>`;
-  } else if (pr.weekMinutes) delta = '<span class="chip">Your first tracked week</span>';
-  const table = `<table class="sr-only"><caption>Focus minutes for the last 7 days</caption><thead><tr><th>Day</th><th>Minutes</th><th>Sessions</th></tr></thead><tbody>${pr.week.map((w) => `<tr><td>${LONGDAY(w.key)}</td><td>${w.minutes}</td><td>${w.sessions}</td></tr>`).join('')}</tbody></table>`;
+  const activeDays = dl.filter((x) => x.doneN + x.earlyN).length;
+  const allMin = dl.reduce((n, x) => n + x.done + x.early, 0);
+  const table = `<table class="sr-only"><caption>Focus minutes per day since you started</caption><thead><tr><th>Day</th><th>Completed minutes</th><th>Ended early minutes</th></tr></thead><tbody>${dl.map((x) => `<tr><td>${LONGDAY(x.key)}</td><td>${x.done}</td><td>${x.early}</td></tr>`).join('')}</tbody></table>`;
   const week = `<article class="tile-b b-week">
-    <div class="b-head"><div><div class="b-label">This week</div><div class="b-kv"><b>${pr.weekMinutes}</b><span>min across ${plural(pr.weekDays, 'day')}</span></div></div>${delta}</div>
-    <div class="wk-chart" role="img" aria-label="Focus minutes per day for the last 7 days">${bars}</div>
+    <div class="b-head"><div><div class="b-label">Every day since you started · ${shortDate(d.first)}</div><div class="b-kv"><b>${allMin}</b><span>min across ${plural(activeDays, 'active day')} of ${d.sinceDays}</span></div></div>
+      <div class="wk-key"><span><i class="lg-done"></i>Completed</span><span><i class="lg-early"></i>Ended early</span></div></div>
+    <div class="wk-chart${dl.length > 7 ? ' dense' : ''}" style="grid-template-columns:repeat(${dl.length}, minmax(0, 1fr))" role="img" aria-label="Focus minutes per day since you started">${bars}</div>
     ${table}
   </article>`;
 

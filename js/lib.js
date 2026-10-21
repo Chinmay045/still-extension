@@ -88,7 +88,7 @@ export function uid() {
 }
 
 export async function getAll() {
-  const r = await chrome.storage.local.get(['settings', 'prefs', 'session', 'parked', 'lastSummary', 'calendar', 'history', 'seenWelcome', 'block', 'wallet', 'pledges', 'calEvents', 'progress']);
+  const r = await chrome.storage.local.get(['settings', 'prefs', 'session', 'parked', 'lastSummary', 'calendar', 'history', 'seenWelcome', 'block', 'wallet', 'pledges', 'calEvents', 'progress', 'firstUsed']);
   return {
     settings: Object.assign({}, DEFAULT_SETTINGS, r.settings || {}),
     prefs: Object.assign({}, DEFAULT_PREFS, r.prefs || {}),
@@ -98,6 +98,7 @@ export async function getAll() {
     calendar: r.calendar || { connected: false, demo: false, nextEvent: null },
     history: r.history || (r.lastSummary ? [r.lastSummary] : []),
     seenWelcome: !!r.seenWelcome,
+    firstUsed: r.firstUsed || 0,
     block: r.block || null,
     wallet: r.wallet || { signedIn: false, email: '', balancePaise: 0, txns: [] },
     pledges: r.pledges || {},
