@@ -484,6 +484,15 @@ main:focus { outline: none; }
 }
 
 @media (max-height: 640px) {
+  .ins-page { min-height: 0; padding: 10px 24px 12px; gap: 10px; }
+  .ins-head h1 { font-size: 24px; }
+  .ins-head p { font-size: 13px; }
+  .ins-how summary { height: 30px; font-size: 12.5px; }
+  .bento { gap: 10px; grid-template-rows: repeat(3, minmax(0, 1fr)); }
+  .b-kpis { gap: 10px; }
+  .tile-b { padding: 10px 16px; gap: 4px; border-radius: 18px; }
+  .b-streak { padding: 12px 18px; }
+  .b-kpi { padding: 6px 12px; border-radius: 14px; }
   .b-big { font-size: 52px; }
   .b-note { margin-top: 2px; }
   .b-dots { margin: 10px 0; }
@@ -491,7 +500,21 @@ main:focus { outline: none; }
 }
 
 /* Small or short screens: same tiles, stacked, and the page scrolls. */
-@media (max-width: 980px), (max-height: 599px) {
+/* Very short windows: drop the extras so it still fits one screen. */
+@media (max-height: 560px) {
+  .ins-head p { display: none; }
+  .b-note { display: none; }
+  .b-big { font-size: 44px; }
+  .b-dots { margin: 6px 0; }
+  .lg { font-size: 12px; gap: 6px; }
+  .tod { font-size: 12px; }
+  .tod-track { height: 8px; }
+  .rec li { padding: 0; }
+  .b-kpi .b-kv b { font-size: 19px; }
+  .b-kv b { font-size: 20px; }
+}
+
+@media (max-width: 980px), (max-height: 509px) {
   .ins-page { height: auto; min-height: 0; padding-bottom: 80px; }
   .bento { height: auto; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: none; grid-auto-rows: minmax(170px, auto); }
   .bento > * { grid-column: auto !important; grid-row: auto !important; }
