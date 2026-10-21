@@ -136,13 +136,15 @@
       <span class="sr-only" id="len-label">How long</span>
       <div class="len-row">
         <div class="seg" role="radiogroup" aria-labelledby="len-label" id="len-seg">
-          <button type="button" role="radio" data-len="25">25 min</button>
-          <button type="button" role="radio" data-len="50">50 min</button>
+          <button type="button" role="radio" data-len="10">10 min</button>
+          <button type="button" role="radio" data-len="15">15 min</button>
           <button type="button" role="radio" data-len="custom">Custom</button>
         </div>
-        <label class="custom" id="custom-wrap" hidden>
+        <div class="custom" id="custom-wrap" hidden>
+          <button type="button" class="quick" data-quick="25">25</button>
+          <button type="button" class="quick" data-quick="50">50</button>
           <input class="input" type="number" id="custom-min" min="1" max="240" step="1" aria-label="Custom length in minutes"> <span class="muted">min</span>
-        </label>
+        </div>
       </div>
     </div>
 

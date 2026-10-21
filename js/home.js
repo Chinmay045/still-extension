@@ -7,7 +7,7 @@ import { SoundEngine } from './audio.js';
 
 const $ = (id) => document.getElementById(id);
 const VIEWS = ['home', 'setup', 'block', 'bucket', 'insights', 'settings', 'summary'];
-const PRESETS = [25, 50];
+const PRESETS = [10, 15];
 let state = await getAll();
 let reviewed = 0;
 
@@ -257,6 +257,7 @@ function renderSetup() {
     b.tabIndex = on ? 0 : -1;
   });
   $('custom-wrap').hidden = !isCustom;
+  document.querySelectorAll('[data-quick]').forEach((q) => q.setAttribute('aria-pressed', String(isCustom && Number(q.dataset.quick) === prefs.plannedMin)));
   if (document.activeElement !== $('custom-min')) $('custom-min').value = isCustom ? prefs.plannedMin : prefs.customMin;
 
   $('themes').innerHTML = THEMES.map((t) => `
@@ -358,11 +359,15 @@ $('len-seg').addEventListener('click', (e) => {
   const b = e.target.closest('[data-len]');
   if (!b) return;
   if (b.dataset.len === 'custom') {
-    const c = PRESETS.includes(state.prefs.customMin) ? 20 : (state.prefs.customMin || 20);
+    const c = PRESETS.includes(state.prefs.customMin) ? 25 : (state.prefs.customMin || 25);
     setPrefs({ plannedMin: c, customMin: c });
   } else setPrefs({ plannedMin: Number(b.dataset.len) });
 });
 radioKeys($('len-seg'), '[data-len]');
+$('custom-wrap').addEventListener('click', (e) => {
+  const q = e.target.closest('[data-quick]');
+  if (q) setPrefs({ plannedMin: Number(q.dataset.quick), customMin: Number(q.dataset.quick) });
+});
 $('custom-min').addEventListener('change', (e) => {
   const v = Math.max(1, Math.min(240, Math.round(Number(e.target.value) || 1)));
   e.target.value = v;

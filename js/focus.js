@@ -2,7 +2,7 @@ import { getAll, send, esc, fmtTime, fmtClock, SOUNDS, THEMES } from './lib.js';
 import { summarize, localOffset, SCORING } from './progress.js';
 
 const $ = (id) => document.getElementById(id);
-const PRESETS = [5, 10, 15, 25];
+const PRESETS = [10, 15, 25, 50];
 const SHORT = { ambient: 'Ambient', gamma: 'Gamma 40 Hz', beta: 'Beta pulse', cafe: 'Cafe', off: 'Silence' };
 let leaving = false;
 
@@ -23,6 +23,11 @@ if (!session) {
     : 'Finish ' + SCORING.minEligibleMinutes + ' minutes or more to start a streak.';
   $('vol').value = session.volume;
   render();
+  // The timer runs from the moment Focus is pressed. A session from an older version may
+  // still be waiting, so start it here; no answer means Still itself needs a reload.
+  send('startTimer').then((s) => {
+    if (s) { session = s; render(); tickClock(); } else stale();
+  });
   tickClock();
   setInterval(tickClock, 1000);
 
@@ -34,11 +39,18 @@ if (!session) {
 function tickClock() {
   if (!session) return;
   const ms = session.phase === 'working' ? session.endsAt - Date.now() : session.plannedMin * 60000;
-  $('clock').textContent = fmtClock(Math.max(0, ms));
+  const t = fmtClock(Math.max(0, ms));
+  $('clock').textContent = t;
+  $('len').textContent = session.phase === 'working' ? t + ' left' : session.plannedMin + ' min';
+}
+
+// Still was updated on disk but Chrome is still running the old version in the background,
+// so buttons here get no answer. Say how to fix it instead of failing quietly.
+function stale() {
+  $('stale').hidden = false;
 }
 
 function render() {
-  $('len').textContent = session.plannedMin + ' min';
   $('presets').innerHTML = PRESETS.map((m) => `<button type="button" class="chipb" role="radio" aria-checked="${m === session.plannedMin}" data-min="${m}">${m}</button>`).join('');
   $('themes').innerHTML = THEMES.map((t) => `<button type="button" class="thm" role="radio" aria-checked="${t.id === session.theme}" data-theme="${t.id}" title="${esc(t.name)}" aria-label="${esc(t.name)}"><img src="assets/${t.id}-thumb.jpg" alt=""></button>`).join('');
   $('img').src = 'assets/' + session.theme + '.jpg';
@@ -49,6 +61,7 @@ function render() {
 // Still: every message comes back empty. Instead of buttons that silently do
 // nothing, reload into the live extension.
 function reconnect(hash) {
+  if (chrome.runtime && chrome.runtime.id) { stale(); leaving = false; return; }
   if (hash) location.replace('home.html#' + hash);
   else location.reload();
 }
@@ -98,4 +111,5 @@ chrome.storage.onChanged.addListener((c) => {
   session = n;
   if (changed) render();
   tickClock();
+  $('stale').hidden = true;
 });

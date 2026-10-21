@@ -1110,6 +1110,8 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
 const handlers = {
   startSession: (m) => startSession(m.config || {}),
   beginWork: (m, sender) => beginWork(sender.tab ? sender.tab.id : null),
+  // From the circle page: make sure the timer runs, without leaving the circle.
+  startTimer: () => beginWork(),
   adjustTime: (m) => adjustTime(Number(m.deltaMin) || 0),
   setSound: (m) => setSound(m.sound),
   setTheme: (m) => setTheme(m.theme),
