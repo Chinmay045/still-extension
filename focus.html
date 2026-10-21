@@ -23,7 +23,9 @@
   .thm img { width: 100%; height: 100%; border-radius: 50%; display: block; }
   .thm[aria-checked="true"] { box-shadow: 0 0 0 2px #000, 0 0 0 4px #FFFFFF; }
   .wrap { flex: 1; min-height: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px; padding: 0 24px; text-align: center; }
-  .wrap { gap: 18px; overflow: hidden; padding-top: 4px; }
+  .wrap { gap: 12px; overflow: hidden; padding-top: 4px; justify-content: center; }
+  /* Grows into free height, but no taller than the largest circle so big screens center the group. */
+  .stage { margin: 6px 0; max-height: 500px; }
   /* Hierarchy: task, then time left, then the circle; everything else stays quiet. */
   .head { display: flex; flex-direction: column; align-items: center; gap: 6px; max-width: min(640px, 100%); }
   .task {
@@ -36,19 +38,25 @@
     line-height: 1; letter-spacing: -0.02em; color: #E9DDF8; text-align: center;
     font-variant-numeric: tabular-nums; font-feature-settings: 'tnum' 1;
   }
+  /* The circle takes all the height the task, timer, text and controls leave free, up to
+     480px, measured by a size container so it can never push the controls off screen.
+     The 4% inset leaves room for the breathing scale (up to 1.03) without clipping. */
+  .stage { flex: 1 1 0; min-height: 0; align-self: stretch; container-type: size; display: grid; place-items: center; }
   .circle {
-    width: min(40vh, 64vw); height: min(40vh, 64vw); border: 0; padding: 0; border-radius: 50%; flex: none;
+    --size: min(100cqh, 96cqw, 480px);
+    width: var(--size); height: var(--size); border: 0; padding: 0; border-radius: 50%; flex: none;
     background: transparent; animation: breathe 9s ease-in-out infinite; transition: opacity .6s;
   }
   .circle img { width: 100%; height: 100%; border-radius: 50%; display: block; animation: spin 80s linear infinite; }
   body.dim .circle { opacity: .5; }
   body.dim .task, body.dim .hint { opacity: .6; }
   .hint { font-size: 15px; font-weight: 400; line-height: 1.5; color: #AFA6BC; }
-  .meta { font-size: 14px; font-weight: 400; line-height: 1.5; color: #AFA6BC; opacity: .8; min-height: 18px; }
-  .quiet { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .meta { font-size: 14px; font-weight: 400; line-height: 1.5; color: #AFA6BC; opacity: .8; }
+  .quiet { text-align: center; max-width: 720px; }
+  .meta:not(:empty) + .meta::before { content: " · "; }
 
   .dock {
-    flex: none; align-self: center; margin: 18px 24px 26px; padding: 14px 18px; max-width: calc(100% - 48px);
+    flex: none; align-self: center; margin: 12px 24px 20px; padding: 12px 18px; max-width: calc(100% - 48px);
     display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 14px 26px;
     border-radius: 22px; background: #121016; border: 1px solid rgba(255, 255, 255, .1);
   }
@@ -68,21 +76,23 @@
   .chipb[aria-checked="true"] { background: #FFFFFF; border-color: #FFFFFF; color: #2A1458; font-weight: 600; }
   .vol { width: 96px; accent-color: #9B4DF5; }
   @media (max-width: 1400px) { .sep { display: none; } }
+  @media (min-width: 1280px) {
+    .top { position: absolute; top: 0; left: 0; right: 0; z-index: 4; pointer-events: none; }
+    .top > * { pointer-events: auto; }
+    .wrap { padding-top: 28px; }
+  }
   /* Short windows and small popups: tighten spacing and drop the streak line first. */
   @media (max-height: 760px) {
     .wrap { gap: 14px; }
-    .circle { width: min(34vh, 64vw); height: min(34vh, 64vw); }
     #streak { display: none; }
   }
   @media (max-height: 680px) {
     .head { gap: 2px; }
-    .circle { width: min(30vh, 60vw); height: min(30vh, 60vw); }
     .quiet { display: none; }
   }
   @media (max-height: 600px) {
     .top { padding: 12px 20px; }
     .clock { font-size: clamp(38px, 2.4rem + 1.4vw, 56px); }
-    .circle { width: min(28vh, 60vw); height: min(28vh, 60vw); }
     .meta { display: none; }
   }
   @media (max-width: 560px) {
@@ -109,13 +119,14 @@
     <h1 class="task" id="task"></h1>
     <div class="clock" id="clock" role="timer" aria-label="Time left"></div>
   </div>
-  <div class="circle" id="circle" role="img" aria-label="Focus circle">
-    <img id="img" alt="">
+  <div class="stage">
+    <div class="circle" id="circle" role="img" aria-label="Focus circle">
+      <img id="img" alt="">
+    </div>
   </div>
   <div class="hint">Your timer is running. Breathe with the circle.</div>
   <div class="quiet">
-    <div class="meta" id="meta"></div>
-    <div class="meta" id="streak"></div>
+    <span class="meta" id="meta"></span><span class="meta" id="streak"></span>
   </div>
 </div>
 <div class="dock" role="group" aria-label="Circle controls">
