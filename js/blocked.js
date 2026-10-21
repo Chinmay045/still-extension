@@ -146,3 +146,8 @@ $('park').addEventListener('keydown', async (e) => {
 });
 
 init();
+
+// Blocking ended while this page was open: go back to the site.
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === 'local' && changes.block && !changes.block.newValue && /^https?:\/\//.test(url)) location.replace(url);
+});

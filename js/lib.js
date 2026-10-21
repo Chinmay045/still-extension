@@ -146,7 +146,7 @@ export function fmtClock(ms) {
 // Bump when background.js changes. Pages compare it with the running service worker,
 // because after a git pull Chrome serves the new pages but keeps the old worker until
 // the extension is reloaded.
-export const BUILD = '2026-10-21b';
+export const BUILD = '2026-10-21c';
 
 // A block with no end ("until I stop it") uses this as its end time.
 export const NO_END = 8.64e15;

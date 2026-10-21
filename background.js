@@ -140,6 +140,20 @@ async function sweepTabs(sites) {
   }
 }
 
+// When blocking ends, every tab showing the block page goes back to the site it was on.
+async function restoreTabs() {
+  const base = chrome.runtime.getURL('blocked.html');
+  const tabs = await chrome.tabs.query({});
+  for (const t of tabs) {
+    if (!t.url || !t.url.startsWith(base)) continue;
+    const i = t.url.indexOf('#');
+    let target = i < 0 ? '' : t.url.slice(i + 1);
+    if (!/^https?:/.test(target)) { try { target = decodeURIComponent(target); } catch (e) { /* leave as is */ } }
+    if (!/^https?:\/\//.test(target)) continue;
+    try { await chrome.tabs.update(t.id, { url: target }); } catch (e) { /* tab closed meanwhile */ }
+  }
+}
+
 async function clearBlocking() {
   const dyn = await chrome.declarativeNetRequest.getDynamicRules();
   if (dyn.length) await chrome.declarativeNetRequest.updateDynamicRules({ removeRuleIds: dyn.map((r) => r.id) });
@@ -646,6 +660,7 @@ async function endBlock() {
   const { block } = await getAll();
   if (!block) return null;
   await chrome.storage.local.set({ block: null });
+  await restoreTabs();
   // Focus sessions log their own history entry when they end.
   if (!block.test && !block.session && block.eventId !== MANUAL_ID) {
     const { history } = await chrome.storage.local.get('history');
