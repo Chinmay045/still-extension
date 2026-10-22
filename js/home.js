@@ -2,6 +2,7 @@ import { attachSuggest } from './site-suggest.js';
 import { BUILD, untilText, NO_END, GOOGLE_CLIENT_ID, WALLET_API, WALLET_ENABLED, PLEDGES, CHARITIES, rupees, pledgeArmed, getAll, patch, send, esc, stillify, fmtWhen, fmtTime, ageDays, normalizeDomain, reducedMotion, KINDS, SOUNDS, THEMES } from './lib.js';
 import { BACKUP_KEYS, makeBackup } from './backup.js';
 import { mountVolume } from './volume.js';
+import { startTour } from './tour.js';
 import { SCORING, summarize, encouragement, localOffset, dayKey, dayNumber, keyFromNumber } from './progress.js';
 import { mountSession } from './session-ui.js';
 import { SoundEngine } from './audio.js';
@@ -1356,6 +1357,13 @@ chrome.storage.onChanged.addListener(async (changes, area) => {
 window.addEventListener('hashchange', route);
 renderNav();
 route();
+// First open after install: walk through the app once.
+chrome.storage.local.get('tourPending').then((r) => {
+  if (!r.tourPending) return;
+  chrome.storage.local.remove('tourPending');
+  startTour();
+});
+$('replay-tour').addEventListener('click', () => startTour());
 document.querySelectorAll('.still-auto').forEach((el) => { el.innerHTML = stillify(el.textContent); });
 
 // "How streaks work" closes when you click anywhere else or press Esc.

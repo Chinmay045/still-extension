@@ -43,7 +43,10 @@ chrome.runtime.onInstalled.addListener(async (details) => {
   }
   chrome.alarms.create('archive', { delayInMinutes: 1, periodInMinutes: 24 * 60 });
   await syncAfterWake();
-  if (details.reason === 'install') chrome.tabs.create({ url: 'home.html' });
+  if (details.reason === 'install') {
+    await chrome.storage.local.set({ tourPending: true });
+    chrome.tabs.create({ url: 'home.html#setup' });
+  }
 });
 
 chrome.runtime.onStartup.addListener(syncAfterWake);

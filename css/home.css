@@ -612,3 +612,18 @@ main:focus { outline: none; }
 .ta-name::first-letter { text-transform: uppercase; }
 .ta-name { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ta-sites { color: #1E7B3A; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* First-run tour (driver.js), in Still's colors. */
+.driver-popover.still-tour { font-family: 'Inter', -apple-system, 'Segoe UI', sans-serif; max-width: 340px; padding: 20px 20px 16px; border-radius: 18px; color: var(--ink); box-shadow: 0 18px 50px rgba(60, 30, 110, 0.25); }
+.still-tour .driver-popover-title { font-family: 'Inter Tight', 'Inter', sans-serif; font-size: 18px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.25; }
+.still-tour .driver-popover-description { margin-top: 6px; font-size: 14px; line-height: 1.5; color: var(--g4); }
+.still-tour .driver-popover-footer { margin-top: 16px; align-items: center; }
+.still-tour .driver-popover-progress-text { font-size: 12px; font-weight: 600; color: var(--g5); }
+.still-tour .driver-popover-navigation-btns { gap: 6px; }
+.still-tour .driver-popover-footer button { height: 34px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--g2); background: #FFFFFF; color: var(--ink); font: 600 13px 'Inter', sans-serif; text-shadow: none; }
+.still-tour .driver-popover-footer .driver-popover-next-btn { border: 0; background: var(--grad); color: #FFFFFF; box-shadow: var(--shadow-btn); }
+.still-tour .driver-popover-footer button:hover { filter: brightness(0.97); }
+.still-tour .driver-popover-footer button:focus-visible { outline: none; box-shadow: var(--ring); }
+.still-tour .driver-popover-close-btn { top: 8px; right: 8px; width: 30px; height: 30px; border-radius: 999px; color: var(--g5); font-size: 20px; }
+.still-tour .driver-popover-close-btn:hover { background: var(--track); color: var(--ink); }
+@media (prefers-reduced-motion: reduce) { .driver-popover.still-tour { animation: none; } }
