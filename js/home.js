@@ -708,7 +708,16 @@ function renderBlockNow() {
       <button type="button" class="ins-arrow" data-bnstep="5" aria-label="5 minutes more"${p.blockOther >= 480 ? ' disabled' : ''}>+</button></div></div>` : ''}
     <div class="toggle-row"><div><b id="bn-strict-l">Let me stop early</b><span class="muted small">${noLimit ? 'Always on with no limit, so you can turn it off.' : 'Turn this off to lock blocking until the time is up.'}</span></div>
       <button class="switch" role="switch" id="bn-strict" aria-labelledby="bn-strict-l" aria-checked="${noLimit || !p.blockStrict}"${noLimit ? ' disabled' : ''}></button></div>
-    <button class="btn btn-primary bn-start" type="button" data-bn="start">${noLimit ? 'Start blocking' : 'Block for ' + fmtLeft(bnMinutes() * 60000)}</button>`;
+    <div class="bn-go"><button class="btn btn-primary bn-start" type="button" data-bn="start" aria-describedby="bn-until">${noLimit ? 'Start blocking' : 'Block for ' + fmtLeft(bnMinutes() * 60000)}</button>
+      <span class="bn-until" id="bn-until">${bnUntil(noLimit)}</span></div>`;
+}
+
+// The clock time blocking would end if started now, so you don't have to add it up.
+function bnUntil(noLimit) {
+  if (noLimit) return 'Until you stop it';
+  const end = new Date(Date.now() + bnMinutes() * 60000);
+  const days = Math.round((new Date(end).setHours(0, 0, 0, 0) - new Date().setHours(0, 0, 0, 0)) / 86400000);
+  return 'Ends at <b>' + fmtTime(end.getTime()) + '</b>' + (days === 1 ? ' tomorrow' : '');
 }
 
 $('block-now').addEventListener('click', async (e) => {
@@ -752,7 +761,11 @@ $('block-now').addEventListener('click', async (e) => {
     if (f) f.focus();
   }
 });
-setInterval(() => { if (current() === 'block' && state.block && state.block.manual) renderBlockNow(); }, 30000);
+setInterval(() => {
+  if (current() !== 'block') return;
+  if (state.block && state.block.manual) renderBlockNow();
+  else { const u = $('bn-until'); if (u) u.innerHTML = bnUntil(state.prefs.blockMin === 0); }
+}, 15000);
 
 function setRadio(selector, attr, value) {
   document.querySelectorAll(selector).forEach((b) => {
