@@ -443,6 +443,14 @@ async function removeSite(d) {
   $(btn).addEventListener('click', () => addSite($(inp)));
   $(inp).addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); addSite($(inp)); } });
 });
+$('task-allow-rows').addEventListener('click', async (e) => {
+  const b = e.target.closest('[data-untask]');
+  if (!b) return;
+  const map = Object.assign({}, state.settings.taskAllow || {});
+  delete map[b.dataset.untask];
+  state.settings = await patch('settings', { taskAllow: map });
+  renderSettings();
+});
 [$('set-sites')].forEach((el) => el.addEventListener('click', (e) => {
   const b = e.target.closest('[data-remove]');
   if (b) removeSite(b.dataset.remove);
@@ -765,6 +773,10 @@ function renderSettings() {
     ? `${LOCK_SVG}<span><b>Blocking is on${live.end >= NO_END ? '' : ' until ' + fmtTime(live.end)}.</b> You can add sites now, but you can't remove any until it ends.</span>`
     : '';
   $('sites-note').hidden = !live;
+  const ta = settings.taskAllow || {};
+  const names = Object.keys(ta).filter((k) => ta[k] && ta[k].length);
+  $('task-allow').hidden = !names.length;
+  $('task-allow-rows').innerHTML = names.map((k) => `<div class="ta-row"><span class="ta-name">${esc(k)}</span><span class="ta-sites">${ta[k].map(esc).join(', ')}</span><button type="button" class="btn btn-sm btn-ghost" data-untask="${esc(k)}" aria-label="Remove exceptions for ${esc(k)}">Remove</button></div>`).join('');
   setRadio('[data-ow]', 'ow', settings.overrideWait);
   const blk = state.block;
   renderBlockNow();

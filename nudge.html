@@ -59,6 +59,13 @@
   .step { display: inline-flex; align-items: center; gap: 4px; margin-top: 2px; }
   .step button { width: 30px; height: 30px; border-radius: 999px; border: 1px solid var(--g2); background: #FFFFFF; color: var(--ink); font-size: 16px; line-height: 1; }
   .step output { min-width: 64px; text-align: center; font-size: 13.5px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .allow { display: flex; flex-direction: column; align-items: center; gap: 7px; margin-top: 10px; padding-top: 12px; border-top: 1px solid var(--g1); }
+  .allow .chips { justify-content: center; }
+  .allow .chip { display: inline-flex; align-items: center; gap: 5px; }
+  .allow .chip[aria-pressed="true"] { border-color: #9FD9B0; background: #EAF7EE; color: #1E7B3A; }
+  .allow .chip[aria-pressed="true"]::before { content: "✓"; font-weight: 700; }
+  .allow .chip:disabled { cursor: default; opacity: 1; }
+  .allow-note { font-size: 12px; line-height: 1.4; color: var(--g5); }
   .uses { margin: 0; font-size: 12.5px; line-height: 1.45; color: var(--g5); }
   .uses b { color: var(--ink); font-weight: 600; }
   .go { min-height: 30px; padding: 0 16px; font-size: 13px; background: #FFFFFF !important; color: var(--v3) !important; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12) !important; }
@@ -75,6 +82,11 @@
     <span class="when" id="when"></span>
     <span class="title" id="title"></span>
     <span class="meta" id="meta"></span>
+    <div class="allow" id="allow" hidden>
+      <span class="lbl" id="allow-l">Needs a blocked site?</span>
+      <div class="chips" role="group" aria-labelledby="allow-l" id="allow-chips"></div>
+      <span class="allow-note" id="allow-note"></span>
+    </div>
   </div>
   <div class="pick" id="pick" hidden>
     <span class="pick-title" id="pick-title"></span>

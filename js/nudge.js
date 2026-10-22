@@ -1,4 +1,4 @@
-import { send, fmtTime, getAll, THEMES } from './lib.js';
+import { send, fmtTime, getAll, patch, taskKey, THEMES } from './lib.js';
 
 // The calendar nudge window: shows the next task, then Focus opens a small picker for
 // how long. The circle and music are the ones set on the Focus page.
@@ -66,7 +66,7 @@ async function setPicking(on) {
 const { calEvents } = await chrome.storage.local.get('calEvents');
 ev = (calEvents || {})[eventId] || null;
 if (!ev) window.close();
-const { prefs } = await getAll();
+const { prefs, settings } = await getAll();
 choice.custom = prefs.customMin || 20;
 choice.theme = prefs.theme || 'vortex';
 choice.sound = prefs.sound || 'ambient';
@@ -74,8 +74,44 @@ choice.sound = prefs.sound || 'ambient';
 const themeName = (THEMES.find((t) => t.id === choice.theme) || THEMES[0]).name;
 const soundName = SHORT_SOUND[choice.sound] || choice.sound;
 $('uses').innerHTML = `With <b>${themeName}</b> and <b>${soundName}</b> from your Focus page.`;
+// Sites this task needs open: picked before it starts, fixed once it runs.
+let allowed = ev ? ((settings.taskAllow || {})[taskKey(ev.title)] || []).slice() : [];
+function paintAllow() {
+  const box = $('allow');
+  const open = Date.now() < ev.start;
+  box.hidden = !settings.calendarBlock || !settings.sites.length || (!open && !allowed.length);
+  if (box.hidden) return;
+  const list = open ? settings.sites : settings.sites.filter((d) => allowed.includes(d));
+  $('allow-chips').innerHTML = list.map((d) => `<button type="button" class="chip" data-allow="${d}" aria-pressed="${allowed.includes(d)}"${open ? '' : ' disabled'}>${d}</button>`).join('');
+  $('allow-note').textContent = open
+    ? (allowed.length ? 'Open during this task only. The rest stay blocked.' : 'Tap one to keep it open during this task only.')
+    : 'Open during this task. Exceptions can only change before a task starts.';
+}
+$('allow-chips').addEventListener('click', async (e) => {
+  const b = e.target.closest('[data-allow]');
+  if (!b || Date.now() >= ev.start) return;
+  const d = b.dataset.allow;
+  allowed = allowed.includes(d) ? allowed.filter((x) => x !== d) : allowed.concat(d);
+  const fresh = (await getAll()).settings;
+  const map = Object.assign({}, fresh.taskAllow || {});
+  if (allowed.length) map[taskKey(ev.title)] = allowed; else delete map[taskKey(ev.title)];
+  await patch('settings', { taskAllow: map });
+  paintAllow();
+});
+if (ev) paintAllow();
 render();
-setInterval(render, 10000);
+setInterval(() => { render(); if (ev) paintAllow(); }, 10000);
+// Grow the window if the exceptions don't fit.
+requestAnimationFrame(async () => {
+  const sheet = document.querySelector('.sheet');
+  // Centered content spills over both edges, so measure it top-aligned.
+  sheet.style.justifyContent = 'flex-start';
+  const extra = sheet.scrollHeight - sheet.clientHeight;
+  sheet.style.justifyContent = '';
+  if (extra > 0) {
+    try { const w = await chrome.windows.getCurrent(); await chrome.windows.update(w.id, { height: w.height + extra + 12 }); } catch (err) { /* stays */ }
+  }
+});
 
 $('pick').addEventListener('click', (e) => {
   const b = e.target.closest('button');

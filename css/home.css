@@ -603,3 +603,9 @@ main:focus { outline: none; }
 .sites-note b { font-weight: 600; }
 .chip-lock { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; color: var(--g4); }
 .chip-lock svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linejoin: round; }
+.task-allow { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; padding-top: 14px; border-top: 1px solid var(--g1); }
+.task-allow b { font-weight: 600; font-size: 14px; }
+.ta-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 6px 0; font-size: 13.5px; }
+.ta-name::first-letter { text-transform: uppercase; }
+.ta-name { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ta-sites { color: #1E7B3A; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

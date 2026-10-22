@@ -4,7 +4,7 @@
 // session's timer runs, and from a synced calendar task's start to its end.
 import { applySession, localOffset } from './js/progress.js';
 import { readBackup, mergeBackup } from './js/backup.js';
-import { getAll, patch, kindOf, uid, normalizeDomain, fmtTime, untilText, NO_END, rupees, pledgeArmed, BUILD, GOOGLE_CLIENT_ID, WALLET_API, WALLET_ENABLED, THEMES, SOUNDS } from './js/lib.js';
+import { getAll, patch, kindOf, taskKey, uid, normalizeDomain, fmtTime, untilText, NO_END, rupees, pledgeArmed, BUILD, GOOGLE_CLIENT_ID, WALLET_API, WALLET_ENABLED, THEMES, SOUNDS } from './js/lib.js';
 
 const CAPTURE_W = 360;
 const CAPTURE_H = 400;
@@ -103,9 +103,38 @@ function escapeRe(s) {
 }
 
 // While a pledge is live, sites removed from the list mid-task stay blocked.
+// A calendar task's own exceptions open up for that task, unless Block now is on top.
 function blockSites(block, settings) {
-  if (!pledgeArmed(block)) return settings.sites;
-  return Array.from(new Set((block.sites || []).concat(settings.sites)));
+  const all = !pledgeArmed(block) ? settings.sites : Array.from(new Set((block.sites || []).concat(settings.sites)));
+  const allow = block && !block.manual && Array.isArray(block.allow) ? block.allow : [];
+  return allow.length ? all.filter((d) => !allow.includes(d)) : all;
+}
+
+// The exceptions a calendar task starts with, fixed for its whole run.
+function allowFor(e, settings) {
+  if (e.session || e.manual || e.test) return [];
+  return ((settings.taskAllow || {})[taskKey(e.title)] || []).filter((d) => settings.sites.includes(d));
+}
+
+// Re-applies the rules after the block changed hands: newly blocked sites close in open
+// tabs, and tabs parked on the block page for a site that's now allowed go back to it.
+async function refreshBlocking() {
+  const { block, settings } = await getAll();
+  if (!block) return;
+  const sites = blockSites(block, settings);
+  await applyBlocking(sites);
+  await sweepTabs(sites);
+  const domains = sites.map(normalizeDomain).filter(Boolean);
+  const base = chrome.runtime.getURL('blocked.html');
+  for (const t of await chrome.tabs.query({})) {
+    if (!t.url || !t.url.startsWith(base)) continue;
+    let target = t.url.slice(t.url.indexOf('#') + 1);
+    if (!/^https?:/.test(target)) { try { target = decodeURIComponent(target); } catch (e) { continue; } }
+    let host = '';
+    try { host = new URL(target).hostname.replace(/^www\./, ''); } catch (e) { continue; }
+    if (domains.some((d) => host === d || host.endsWith('.' + d))) continue;
+    try { await chrome.tabs.update(t.id, { url: target }); } catch (e) { /* tab closed meanwhile */ }
+  }
 }
 
 // The block-end alarm, except for a block with no end, which waits for Stop.
@@ -638,9 +667,23 @@ async function startBlock(e) {
   if (block && block.end > Date.now()) {
     if (block.eventId === MANUAL_ID && !e.manual) {
       // You were already blocking: the task takes the block over, and your own end time stays.
-      Object.assign(block, { eventId: e.id, key: e.id + ':' + e.start, title: e.title, session: !!e.session, test: !!e.test, baseEnd: e.end, end: Math.max(e.end, block.manual ? block.manual.end : 0) });
+      Object.assign(block, { eventId: e.id, key: e.id + ':' + e.start, title: e.title, session: !!e.session, test: !!e.test, baseEnd: e.end, end: Math.max(e.end, block.manual ? block.manual.end : 0), allow: allowFor(e, settings), evStart: e.start });
       await chrome.storage.local.set({ block });
       armBlockEnd(block.end);
+      await refreshBlocking();
+      return block;
+    }
+    // Back-to-back calendar tasks: the newer task takes over with its own exceptions,
+    // and the one before it is logged as finished.
+    const calBlock = !block.session && !block.test && block.eventId !== MANUAL_ID && !pledgeArmed(block);
+    if (calBlock && !e.session && !e.manual && !e.test && e.id !== block.eventId && e.start > (block.evStart || block.start)) {
+      await logCalendarTask(block);
+      const manualEnd = block.manual ? block.manual.end : 0;
+      Object.assign(block, { eventId: e.id, key: e.id + ':' + e.start, title: e.title, start: Date.now(), evStart: e.start, end: Math.max(e.end, manualEnd), allow: allowFor(e, settings), impulses: 0, overrides: 0 });
+      if (block.manual) block.baseEnd = e.end; else delete block.baseEnd;
+      await chrome.storage.local.set({ block });
+      armBlockEnd(block.end);
+      await refreshBlocking();
       return block;
     }
     if (e.end > block.end) {
@@ -663,12 +706,14 @@ async function startBlock(e) {
     session: !!e.session,
     ...(e.manual ? { manual: { start: Date.now(), end: e.end, strict: !!e.strict } } : {}),
     sites: settings.sites.slice(),
+    evStart: e.start,
+    allow: allowFor(e, settings),
     // Pledges belong to calendar tasks; a focus session's block never puts money on the line.
     ...(e.session || e.manual ? { pledge: 0 } : await pledgeFor(e, settings))
   };
   await chrome.storage.local.set({ block: next });
-  await applyBlocking(settings.sites);
-  await sweepTabs(settings.sites);
+  await applyBlocking(blockSites(next, settings));
+  await sweepTabs(blockSites(next, settings));
   armBlockEnd(next.end);
   const id = 'block|' + Date.now();
   const stake = next.pledge ? ' ' + rupees(next.pledge * 100) + ' is on the line.' : next.pledgeShort ? ' Your wallet is too low for the ' + rupees(next.pledgeShort * 100) + ' pledge, so none is set.' : '';
@@ -718,7 +763,13 @@ async function endBlock(opts) {
   await chrome.storage.local.set({ block: null });
   await restoreTabs();
   // Focus sessions log their own history entry when they end.
-  if (!block.test && !block.session && block.eventId !== MANUAL_ID && !(opts && opts.cancelled)) {
+  if (!(opts && opts.cancelled)) await logCalendarTask(block);
+  return block;
+}
+
+// Focus sessions log their own history entry when they end; calendar tasks log here.
+async function logCalendarTask(block) {
+  if (!block.test && !block.session && block.eventId !== MANUAL_ID) {
     const { history } = await chrome.storage.local.get('history');
     const entry = {
       kind: 'calendar',
@@ -743,7 +794,8 @@ async function endBlock(opts) {
 async function checkBlockNow() {
   const { calEvents } = await chrome.storage.local.get('calEvents');
   const now = Date.now();
-  const live = Object.values(calEvents || {}).filter((e) => e.start <= now + 1000 && e.end > now);
+  // Oldest first, so when tasks overlap the newest one ends up holding the block.
+  const live = Object.values(calEvents || {}).filter((e) => e.start <= now + 1000 && e.end > now).sort((a, b) => a.start - b.start);
   for (const e of live) await startBlock(e);
 }
 
@@ -776,6 +828,7 @@ async function blockNow(minutes, strict) {
     }
     await chrome.storage.local.set({ block });
     armBlockEnd(block.end);
+    await refreshBlocking();
     return block;
   }
   return startBlock({ id: MANUAL_ID, title: 'Block now', start: now, end, manual: true, strict: manual.strict });
@@ -812,6 +865,7 @@ async function stopManual() {
   } else {
     await chrome.storage.local.set({ block });
     armBlockEnd(base);
+    await refreshBlocking();
   }
   return { ok: true };
 }

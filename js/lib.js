@@ -33,6 +33,7 @@ export const DEFAULT_SETTINGS = {
   googleClientId: '',
   walletApi: '',
   pledge: 50,
+  taskAllow: {},   // calendar task name (lowercase) -> sites that task may open
   charity: CHARITIES[0]
 };
 
@@ -121,6 +122,11 @@ export function send(type, data) {
   return chrome.runtime.sendMessage(Object.assign({ type }, data || {})).catch(() => null);
 }
 
+// Calendar tasks remember their site exceptions by name, so a weekly event keeps them.
+export function taskKey(title) {
+  return String(title || '').trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
 export function normalizeDomain(input) {
   let d = String(input || '').trim().toLowerCase();
   if (!d) return '';
@@ -146,7 +152,7 @@ export function fmtClock(ms) {
 // Bump when background.js changes. Pages compare it with the running service worker,
 // because after a git pull Chrome serves the new pages but keeps the old worker until
 // the extension is reloaded.
-export const BUILD = '2026-10-22b';
+export const BUILD = '2026-10-22c';
 
 // A block with no end ("until I stop it") uses this as its end time.
 export const NO_END = 8.64e15;
