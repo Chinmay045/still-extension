@@ -1,11 +1,11 @@
-import { send, fmtTime, getAll, THEMES, SOUNDS } from './lib.js';
+import { send, fmtTime, getAll, THEMES } from './lib.js';
 
 // The calendar nudge window: shows the next task, then Focus opens a small picker for
-// how long, which circle and which music before the circle starts.
+// how long. The circle and music are the ones set on the Focus page.
 const $ = (id) => document.getElementById(id);
 const eventId = decodeURIComponent(location.hash.slice(1));
 const START_MIN = 10;
-const PICK_H = 680;
+const PICK_H = 350;
 const SHORT_SOUND = { ambient: 'Ambient', gamma: 'Gamma 40 Hz', beta: 'Beta pulse', cafe: 'Cafe', white: 'White noise', pink: 'Pink noise', brown: 'Brown noise', off: 'Silence' };
 let ev = null;
 let picking = false;
@@ -32,8 +32,6 @@ function paintPick() {
   document.querySelectorAll('[data-len]').forEach((b) => b.setAttribute('aria-checked', String(String(choice.len) === b.dataset.len)));
   $('step').hidden = choice.len !== 'custom';
   $('custom').textContent = choice.custom + ' min';
-  document.querySelectorAll('[data-theme]').forEach((b) => b.setAttribute('aria-checked', String(b.dataset.theme === choice.theme)));
-  document.querySelectorAll('[data-sound]').forEach((b) => b.setAttribute('aria-checked', String(b.dataset.sound === choice.sound)));
   render();
 }
 
@@ -73,8 +71,9 @@ choice.custom = prefs.customMin || 20;
 choice.theme = prefs.theme || 'vortex';
 choice.sound = prefs.sound || 'ambient';
 
-$('circles').innerHTML = THEMES.map((t) => `<button type="button" class="circ" role="radio" data-theme="${t.id}" title="${t.desc}"><img src="assets/${t.id}-thumb.jpg" alt="">${t.name}</button>`).join('');
-$('sounds').innerHTML = SOUNDS.map((s) => `<button type="button" class="chip" role="radio" data-sound="${s.id}" title="${s.desc}">${SHORT_SOUND[s.id] || s.name}</button>`).join('');
+const themeName = (THEMES.find((t) => t.id === choice.theme) || THEMES[0]).name;
+const soundName = SHORT_SOUND[choice.sound] || choice.sound;
+$('uses').innerHTML = `With <b>${themeName}</b> and <b>${soundName}</b> from your Focus page.`;
 render();
 setInterval(render, 10000);
 
@@ -82,8 +81,6 @@ $('pick').addEventListener('click', (e) => {
   const b = e.target.closest('button');
   if (!b) return;
   if (b.dataset.len) choice.len = b.dataset.len === 'custom' ? 'custom' : Number(b.dataset.len);
-  else if (b.dataset.theme) choice.theme = b.dataset.theme;
-  else if (b.dataset.sound) choice.sound = b.dataset.sound;
   else if (b.id === 'less') choice.custom = Math.max(5, choice.custom - 5);
   else if (b.id === 'more') choice.custom = Math.min(240, choice.custom + 5);
   else return;

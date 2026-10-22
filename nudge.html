@@ -46,7 +46,7 @@
   .ghost { height: 30px; padding: 0 12px; border: 0; border-radius: 999px; background: transparent; color: #FFFFFF; font-size: 12.5px; font-weight: 600; }
   .ghost:hover { background: rgba(255, 255, 255, 0.2); }
   [hidden] { display: none !important; }
-  /* Picker: how long, which circle, which music. */
+  /* Picker: how long. Circle and music come from the Focus page. */
   body.picking .sheet { justify-content: flex-start; gap: 12px; padding: 30px 22px 28px; text-align: left; }
   .pick { display: flex; flex-direction: column; gap: 14px; }
   .pick-title { font-family: 'Inter Tight', sans-serif; font-size: 16px; font-weight: 600; letter-spacing: -0.02em; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -59,11 +59,8 @@
   .step { display: inline-flex; align-items: center; gap: 4px; margin-top: 2px; }
   .step button { width: 30px; height: 30px; border-radius: 999px; border: 1px solid var(--g2); background: #FFFFFF; color: var(--ink); font-size: 16px; line-height: 1; }
   .step output { min-width: 64px; text-align: center; font-size: 13.5px; font-weight: 600; font-variant-numeric: tabular-nums; }
-  .circles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px 6px; }
-  .circ { display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 6px 4px; border: 1px solid transparent; border-radius: 14px; background: transparent; font-size: 12px; font-weight: 500; color: var(--ink); }
-  .circ img { width: 44px; height: 44px; border-radius: 50%; background: #000; display: block; box-shadow: 0 0 0 2px #FFFFFF, 0 0 0 3px var(--g2); }
-  .circ[aria-checked="true"] { border-color: var(--g2); background: #F7F3FD; }
-  .circ[aria-checked="true"] img { box-shadow: 0 0 0 2px #FFFFFF, 0 0 0 4px var(--v3); }
+  .uses { margin: 0; font-size: 12.5px; line-height: 1.45; color: var(--g5); }
+  .uses b { color: var(--ink); font-weight: 600; }
   .go { min-height: 30px; padding: 0 16px; font-size: 13px; background: #FFFFFF !important; color: var(--v3) !important; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12) !important; }
 </style>
 </head>
@@ -94,14 +91,7 @@
         <button type="button" id="more" aria-label="5 minutes more">+</button>
       </div>
     </div>
-    <div class="grp">
-      <span class="lbl" id="circ-l">Focus circle</span>
-      <div class="circles" role="radiogroup" aria-labelledby="circ-l" id="circles"></div>
-    </div>
-    <div class="grp">
-      <span class="lbl" id="snd-l">Music</span>
-      <div class="chips" role="radiogroup" aria-labelledby="snd-l" id="sounds"></div>
-    </div>
+    <p class="uses" id="uses"></p>
   </div>
 </main>
 <footer class="roller">
