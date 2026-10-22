@@ -1053,15 +1053,29 @@ async function dropToken() {
   await chrome.storage.session.remove(['calToken', 'calTokenExp', 'calTokenChrome']);
 }
 
+// Errors that mean Google really signed Still out, as opposed to a dropped connection.
+function authError(msg) {
+  const e = new Error(msg);
+  e.auth = true;
+  return e;
+}
+
 async function fetchEvents() {
-  const token = await getToken(false);
+  let token;
+  try {
+    token = await getToken(false);
+  } catch (e) {
+    // No network looks the same as a refused sign-in from here; only the second needs the user.
+    if (!navigator.onLine) throw e;
+    throw authError(e.message);
+  }
   const now = new Date();
   const max = new Date(Date.now() + 12 * 3600000);
   const q = new URLSearchParams({ timeMin: now.toISOString(), timeMax: max.toISOString(), singleEvents: 'true', orderBy: 'startTime', maxResults: '10' });
   const res = await fetch(CAL_API + '?' + q, { headers: { Authorization: 'Bearer ' + token } });
   if (res.status === 401) {
     await dropToken();
-    throw new Error('Calendar token expired');
+    throw authError('Calendar token expired');
   }
   if (!res.ok) throw new Error('Calendar API error ' + res.status);
   const data = await res.json();
@@ -1080,7 +1094,9 @@ async function pollCalendar() {
       events = await fetchEvents();
     } catch (e) {
       // Usually Google needs the user to sign in again. Say so instead of failing quietly.
-      if (!calendar.needsSignIn) await chrome.storage.local.set({ calendar: Object.assign({}, calendar, { needsSignIn: true, syncError: e.message }) });
+      // A dropped connection (laptop waking up, Wi-Fi blip) just retries next minute.
+      if (e.auth && !calendar.needsSignIn) await chrome.storage.local.set({ calendar: Object.assign({}, calendar, { needsSignIn: true, syncError: e.message }) });
+      else if (!e.auth) await chrome.storage.local.set({ calendar: Object.assign({}, calendar, { syncError: e.message }) });
       return;
     }
   }
