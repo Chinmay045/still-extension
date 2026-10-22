@@ -684,7 +684,33 @@ async function startBlock(e) {
   return next;
 }
 
-async function endBlock() {
+// A calendar task's block follows the task: deleted or moved later ends it, and a new
+// end time moves the block's end. Blocking you added yourself with Block now stays.
+async function followCalendarBlock(events) {
+  const { block } = await getAll();
+  if (!block || block.session || block.test || block.eventId === MANUAL_ID || pledgeArmed(block)) return;
+  const now = Date.now();
+  const e = events[block.eventId];
+  if (e && e.start <= now + 1000) {
+    const end = Math.max(e.end, block.manual ? block.manual.end : 0);
+    if (e.title !== block.title || e.end !== (block.baseEnd || block.end) || end !== block.end) {
+      Object.assign(block, { title: e.title, end }, block.manual ? { baseEnd: e.end } : {});
+      await chrome.storage.local.set({ block });
+      armBlockEnd(block.end);
+    }
+    return;
+  }
+  if (block.manual && block.manual.end > now) {
+    const rest = { ...block, eventId: MANUAL_ID, key: MANUAL_ID + ':' + block.manual.start, title: 'Block now', session: false, end: block.manual.end };
+    delete rest.baseEnd;
+    await chrome.storage.local.set({ block: rest });
+    armBlockEnd(rest.end);
+    return;
+  }
+  await endBlock({ cancelled: true });
+}
+
+async function endBlock(opts) {
   chrome.alarms.clear('block-end');
   await clearBlocking();
   const { block } = await getAll();
@@ -692,7 +718,7 @@ async function endBlock() {
   await chrome.storage.local.set({ block: null });
   await restoreTabs();
   // Focus sessions log their own history entry when they end.
-  if (!block.test && !block.session && block.eventId !== MANUAL_ID) {
+  if (!block.test && !block.session && block.eventId !== MANUAL_ID && !(opts && opts.cancelled)) {
     const { history } = await chrome.storage.local.get('history');
     const entry = {
       kind: 'calendar',
@@ -1086,6 +1112,7 @@ async function pollCalendar() {
   calendar.nextEvent = upcoming[0] || null;
   calendar.lastSync = now;
   await chrome.storage.local.set({ calendar, calEvents: store });
+  await followCalendarBlock(store);
   await checkBlockNow();
   for (const id of late) await fireNudge(id);
 }
