@@ -103,7 +103,7 @@
             </div>
           </div>
           <div class="row"><button class="park" data-act="park">Capture thought</button><button class="exit" data-act="exit">Exit focus</button></div>
-          <div class="note">${/Mac/.test(navigator.platform || navigator.userAgent) ? '⇧⌘K' : 'Ctrl+Shift+K'} parks a thought from any tab.</div>
+          <div class="note">${/Mac/.test(navigator.platform || navigator.userAgent) ? '⇧⌘Space' : 'Ctrl+Shift+Space'} parks a thought from any tab.</div>
         </div>` : ''}
         <button class="pill" data-act="toggle" aria-expanded="${open}" aria-label="Still session, ${clock()} left"><img src="${ringUrl}" alt=""><span class="pclock">${clock()}</span></button>
       </div>`;
