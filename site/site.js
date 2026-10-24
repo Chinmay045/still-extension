@@ -58,3 +58,8 @@ if (toCompare) toCompare.addEventListener('click', () => {
 });
 const y = document.getElementById('year');
 if (y) y.textContent = new Date().getFullYear();
+
+// The capture shortcut is Shift+Command+Space on Mac.
+if (/Mac/.test(navigator.platform || navigator.userAgent)) {
+  document.querySelectorAll('[data-mod]').forEach((k) => { k.textContent = '⌘'; });
+}

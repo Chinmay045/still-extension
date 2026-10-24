@@ -981,6 +981,10 @@ let capKey = CAPTURE_KEY;
 captureKey().then((k) => {
   capKey = k;
   $('shortcut').textContent = k || 'Not set';
+  if (k) document.querySelectorAll('[data-keys]').forEach((el) => {
+    const parts = k.includes('+') ? k.split('+') : k.match(/[⇧⌘⌥⌃]|[^⇧⌘⌥⌃]+/g);
+    el.innerHTML = parts.map((p) => '<kbd>' + esc(p) + '</kbd>').join('<span>+</span>');
+  });
   if (current() === 'bucket') renderBucket();
 });
 
