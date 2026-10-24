@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Still",
   "short_name": "Still",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAk4jrjXTmqVhSJwMSF+8Tql9pTIFZbApxz9lWXzUvxEl17vnq3PznM9VBNEVG4JUTuVLuEfFaATZ4NJVQW6YU4zwk7c4BUT6lNes5rHdui8Mod28Fm/ResFcdftNsYkTM6wV3qZi7eQIQw4Evpu2JcG9MjwOHkobO7la9ytYazRchNeixyB3SdtkoCJJJAeUPXd1DHalrAFddMMpoUNr3gGJPTMAc6Yvy6e+Qliz0j0crmyjFDtj5Vlj2HLQFVJ0iiJQVT2JUdXcwTdu6kIg7pLb1Fi8jW7VrMIUNtbeUgjWfoomFYejgXsyb2uFbzcoir18rAD+qHHeBvKEBCzvYpQIDAQAB",
   "description": "Stop switching. Start finishing. Name one task, block the noise, park stray thoughts.",
   "icons": {
@@ -46,7 +46,7 @@
     "park-thought": {
       "suggested_key": {
         "default": "Alt+P",
-        "mac": "Alt+P"
+        "mac": "Command+Shift+P"
       },
       "description": "Capture thought (saves it to your Still bucket)"
     }

@@ -1,10 +1,10 @@
 // In-session controls: timer with -5 / +5, music, Capture thought, Exit focus.
-import { send, fmtClock, esc, SOUNDS, THEMES } from './lib.js';
+import { send, fmtClock, esc, SOUNDS, THEMES, CAPTURE_KEY } from './lib.js';
 import { summarize, localOffset, SCORING } from './progress.js';
 
 export function mountSession(el) {
   let session = null;
-  let shortcut = 'Alt+P';
+  let shortcut = CAPTURE_KEY;
   let progressText = '';
   // A quiet line under the timer: the streak, nothing more.
   const loadProgress = async () => {

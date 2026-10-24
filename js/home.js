@@ -1,5 +1,5 @@
 import { attachSuggest } from './site-suggest.js';
-import { BUILD, untilText, NO_END, GOOGLE_CLIENT_ID, WALLET_API, WALLET_ENABLED, PLEDGES, CHARITIES, rupees, pledgeArmed, getAll, patch, send, esc, stillify, fmtWhen, fmtTime, ageDays, normalizeDomain, reducedMotion, KINDS, SOUNDS, THEMES } from './lib.js';
+import { BUILD, untilText, NO_END, GOOGLE_CLIENT_ID, WALLET_API, WALLET_ENABLED, PLEDGES, CHARITIES, rupees, pledgeArmed, getAll, patch, send, esc, stillify, fmtWhen, fmtTime, CAPTURE_KEY, captureKey, ageDays, normalizeDomain, reducedMotion, KINDS, SOUNDS, THEMES } from './lib.js';
 import { BACKUP_KEYS, makeBackup } from './backup.js';
 import { mountVolume } from './volume.js';
 import { startTour } from './tour.js';
@@ -500,7 +500,7 @@ function renderBucket() {
     review.innerHTML = `
       <div class="all-clear" role="status">
         <img src="assets/ring.png" alt="">
-        <div><b>All clear</b><span class="muted small">${reviewed ? 'Every new thought has a place now.' : 'Nothing new to review. Park thoughts with Alt+P while you work.'}</span></div>
+        <div><b>All clear</b><span class="muted small">${reviewed ? 'Every new thought has a place now.' : (capKey ? 'Nothing new to review. Park thoughts with ' + capKey + ' while you work.' : 'Nothing new to review. Park thoughts from the Still popup while you work.')}</span></div>
       </div>`;
   }
 
@@ -977,9 +977,11 @@ $('import-file').addEventListener('change', async (e) => {
 });
 
 $('change-shortcut').addEventListener('click', () => chrome.tabs.create({ url: 'chrome://extensions/shortcuts' }));
-chrome.commands.getAll().then((cmds) => {
-  const c = cmds.find((x) => x.name === 'park-thought');
-  $('shortcut').textContent = c && c.shortcut ? c.shortcut : 'Not set';
+let capKey = CAPTURE_KEY;
+captureKey().then((k) => {
+  capKey = k;
+  $('shortcut').textContent = k || 'Not set';
+  if (current() === 'bucket') renderBucket();
 });
 
 // ---------- summary ----------

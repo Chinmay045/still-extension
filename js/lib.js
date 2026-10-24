@@ -152,7 +152,7 @@ export function fmtClock(ms) {
 // Bump when background.js changes. Pages compare it with the running service worker,
 // because after a git pull Chrome serves the new pages but keeps the old worker until
 // the extension is reloaded.
-export const BUILD = '2026-10-22d';
+export const BUILD = '2026-10-24a';
 
 // A block with no end ("until I stop it") uses this as its end time.
 export const NO_END = 8.64e15;
@@ -190,4 +190,15 @@ export function stillify(s) {
 
 export function reducedMotion() {
   return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+
+// The capture shortcut's default label. Option+P types a symbol on Mac, so Mac uses Shift+Command+P.
+export const CAPTURE_KEY = /Mac/.test(navigator.platform || navigator.userAgent) ? '⇧⌘P' : 'Alt+P';
+
+// The capture shortcut as the user actually has it set, or '' when it isn't set.
+export async function captureKey() {
+  try {
+    const c = (await chrome.commands.getAll()).find((x) => x.name === 'park-thought');
+    return c ? c.shortcut || '' : CAPTURE_KEY;
+  } catch (e) { return CAPTURE_KEY; }
 }
