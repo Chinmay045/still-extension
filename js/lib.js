@@ -192,8 +192,8 @@ export function reducedMotion() {
   return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 }
 
-// The capture shortcut's default label. Option+P types a symbol on Mac, so Mac uses Shift+Command+P.
-export const CAPTURE_KEY = /Mac/.test(navigator.platform || navigator.userAgent) ? '⇧⌘P' : 'Alt+P';
+// The capture shortcut's default label. Same keys everywhere: Ctrl+Shift+P, which is Shift+Command+P on Mac.
+export const CAPTURE_KEY = /Mac/.test(navigator.platform || navigator.userAgent) ? '⇧⌘P' : 'Ctrl+Shift+P';
 
 // The capture shortcut as the user actually has it set, or '' when it isn't set.
 export async function captureKey() {

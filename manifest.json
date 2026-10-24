@@ -45,7 +45,7 @@
   "commands": {
     "park-thought": {
       "suggested_key": {
-        "default": "Alt+P",
+        "default": "Ctrl+Shift+P",
         "mac": "Command+Shift+P"
       },
       "description": "Capture thought (saves it to your Still bucket)"
