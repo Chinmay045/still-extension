@@ -27,7 +27,7 @@ WHAT YOU GET
 • Block now: block your distracting sites any time, for 25 minutes, an hour, a custom time, or until you stop it. Turn on the lock and there's no way around it until the time is up.
 • Already-open tabs too: when blocking starts, tabs you already had open on those sites are blocked as well, and they come back exactly where you left them when it ends.
 • A pause before you give up: stopping a block early takes a moment of reflection and a 3-second hold, so you stop on purpose, not on impulse.
-• Capture thought (Ctrl+Shift+P, or Shift+Command+P on Mac): write a note, checklist or idea without leaving your tab. Review your Bucket later in about a minute.
+• Capture thought (Ctrl+Shift+K, or Shift+Command+K on Mac): write a note, checklist or idea without leaving your tab. Review your Bucket later in about a minute.
 • Insights: streaks, sessions completed and ended early, focus time by day, week and month, distractions held off, and your best time of day.
 • Google Calendar (optional): get a nudge a few minutes before an event, and block sites while it runs. Read-only access.
 

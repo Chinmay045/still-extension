@@ -192,8 +192,8 @@ export function reducedMotion() {
   return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 }
 
-// The capture shortcut's default label. Same keys everywhere: Ctrl+Shift+P, which is Shift+Command+P on Mac.
-export const CAPTURE_KEY = /Mac/.test(navigator.platform || navigator.userAgent) ? '⇧⌘P' : 'Ctrl+Shift+P';
+// The capture shortcut's default label. Same keys everywhere: Ctrl+Shift+K, which is Shift+Command+K on Mac. (Chrome keeps Ctrl+Shift+P for printing.)
+export const CAPTURE_KEY = /Mac/.test(navigator.platform || navigator.userAgent) ? '⇧⌘K' : 'Ctrl+Shift+K';
 
 // The capture shortcut as the user actually has it set, or '' when it isn't set.
 export async function captureKey() {
