@@ -56,3 +56,13 @@ test('the file never carries install-specific settings and junk is refused', () 
   assert.equal(readBackup('{"hello":1}'), null);
   assert.equal(readBackup('not json'), null);
 });
+
+test('broken pledges merge by id and a payment on either side wins', () => {
+  const cur = { fines: [{ id: 'a', amount: 50, paid: false }, { id: 'b', amount: 20, paid: true, ref: 'R1' }] };
+  const inc = { fines: [{ id: 'a', amount: 50, paid: true, ref: 'R2', paidAt: 5 }, { id: 'c', amount: 100, paid: false }] };
+  const { values } = mergeBackup(cur, inc);
+  assert.deepEqual(values.fines.map((f) => [f.id, f.paid]), [['a', true], ['b', true], ['c', false]]);
+  assert.equal(values.fines[0].ref, 'R2');
+  const again = mergeBackup(values, inc).values;
+  assert.equal(again.fines.length, 3);
+});

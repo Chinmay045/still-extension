@@ -1,5 +1,5 @@
 import { attachSuggest } from './site-suggest.js';
-import { BUILD, untilText, NO_END, GOOGLE_CLIENT_ID, WALLET_API, WALLET_ENABLED, PLEDGES, CHARITIES, rupees, pledgeArmed, getAll, patch, send, esc, stillify, fmtWhen, fmtTime, CAPTURE_KEY, captureKey, ageDays, normalizeDomain, reducedMotion, KINDS, SOUNDS, THEMES } from './lib.js';
+import { BUILD, untilText, NO_END, GOOGLE_CLIENT_ID, WALLET_API, WALLET_ENABLED, PLEDGES, CHARITIES, PLEDGES_ON, PLEDGE_CHARITY, PLEDGE_AMOUNTS, owed, upiLink, rupees, pledgeArmed, getAll, patch, send, esc, stillify, fmtWhen, fmtTime, CAPTURE_KEY, captureKey, ageDays, normalizeDomain, reducedMotion, KINDS, SOUNDS, THEMES } from './lib.js';
 import { BACKUP_KEYS, makeBackup } from './backup.js';
 import { mountVolume } from './volume.js';
 import { startTour } from './tour.js';
@@ -8,7 +8,7 @@ import { mountSession } from './session-ui.js';
 import { SoundEngine } from './audio.js';
 
 const $ = (id) => document.getElementById(id);
-const VIEWS = ['home', 'setup', 'block', 'bucket', 'insights', 'settings', 'summary'];
+const VIEWS = ['home', 'setup', 'block', 'bucket', 'insights', 'settings', 'summary', 'pay'];
 const PRESETS = [10, 15];
 let state = await getAll();
 let reviewed = 0;
@@ -43,6 +43,7 @@ function renderView(name) {
   if (name === 'settings' || name === 'block') renderSettings();
   if (name === 'insights') renderInsights();
   if (name === 'summary') renderSummary();
+  if (name === 'pay') renderPay();
 }
 
 function current() {
@@ -74,6 +75,7 @@ function toast(text) {
 // ---------- nav ----------
 
 function renderNav() {
+  renderOweBar();
   const fresh = state.parked.filter((p) => p.status === 'new').length;
   $('nav-badge').hidden = !fresh;
   $('nav-badge').textContent = fresh;
@@ -186,7 +188,7 @@ function renderWalletRows() {
 // Stopping a pledged block early costs the pledge, so the button says so and asks twice.
 function stopButton(extra) {
   const b = state.block;
-  const label = pledgeArmed(b) ? 'Stop and lose ' + rupees(b.pledge * 100) : 'Stop';
+  const label = pledgeArmed(b) ? (PLEDGES_ON ? 'Stop and owe ' : 'Stop and lose ') + rupees(b.pledge * 100) : 'Stop';
   return `<button class="btn btn-sm ${extra || ''}" type="button" data-stop="1">${label}</button>`;
 }
 
@@ -196,7 +198,7 @@ async function stopClicked(b) {
   b.disabled = false;
   if (res && res.needsConfirm) {
     b.dataset.confirm = '1';
-    b.textContent = 'Tap again to lose ' + rupees(res.pledge * 100);
+    b.textContent = (PLEDGES_ON ? 'Tap again to owe ' + rupees(res.pledge * 100) + ' to ' + PLEDGE_CHARITY.name : 'Tap again to lose ' + rupees(res.pledge * 100));
     b.classList.add('btn-lose');
   } else if (res && res.ok === false) {
     toast(res.code === 'insufficient' ? 'Your wallet is too low to cover the pledge.' : 'Could not reach your wallet. Nothing was taken.');
@@ -568,6 +570,93 @@ $('bucket-add').addEventListener('keydown', (e) => { if (e.key === 'Enter') addT
 
 // ---------- settings ----------
 
+// ---------- focus pledge ----------
+// Opt-in: each focus session and calendar task carries an amount. Breaking one writes
+// that amount down as owed to the charity, and the user pays the charity by UPI.
+
+function renderPledge() {
+  $('pledge-card').hidden = !PLEDGES_ON;
+  if (!PLEDGES_ON) return;
+  const { settings, block } = state;
+  const on = !!settings.pledgeOn;
+  $('t-pledge').setAttribute('aria-checked', String(on));
+  $('pledge-note').textContent = pledgeArmed(block)
+    ? rupees(block.pledge * 100) + ' is pledged on ' + block.title + ' right now. Changes here apply from the next one.'
+    : on ? 'Each focus session and calendar task carries ' + rupees(settings.pledge * 100) + '. Finish it and you owe nothing.'
+      : 'Back your focus with money for charity. Off until you turn it on.';
+  $('pledge-amt-wrap').hidden = !on;
+  if (!$('pledge-amt').children.length) {
+    $('pledge-amt').innerHTML = PLEDGE_AMOUNTS.map((a) => `<button type="button" role="radio" data-pamt="${a}">${rupees(a * 100)}</button>`).join('');
+  }
+  setRadio('[data-pamt]', 'pamt', settings.pledge);
+  $('pledge-how').innerHTML = `End a session early or open a blocked site anyway, and you owe that amount to <b>${esc(PLEDGE_CHARITY.name)}</b>. You pay them yourself by UPI. <span class="still-word">Still</span> never touches your money.`;
+  const { total } = owed(state.fines);
+  const given = state.fines.filter((f) => f.paid).reduce((n, f) => n + f.amount, 0);
+  $('pledge-owe').hidden = !total && !given;
+  $('pledge-owe').innerHTML = total
+    ? `<span>You owe <b>${rupees(total * 100)}</b> to ${esc(PLEDGE_CHARITY.name)}.</span><a class="btn btn-sm btn-primary" href="#pay">Pay now</a>`
+    : `<span>You've given <b>${rupees(given * 100)}</b> to ${esc(PLEDGE_CHARITY.name)}. Every pledge is settled.</span>`;
+}
+
+$('t-pledge').addEventListener('click', async () => {
+  state.settings = await patch('settings', { pledgeOn: !state.settings.pledgeOn });
+  renderPledge();
+});
+$('pledge-amt').addEventListener('click', async (e) => {
+  const b = e.target.closest('[data-pamt]');
+  if (!b) return;
+  state.settings = await patch('settings', { pledge: Number(b.dataset.pamt) });
+  renderPledge();
+});
+radioKeys($('pledge-amt'), '[data-pamt]');
+
+function renderOweBar() {
+  const { total } = owed(state.fines);
+  const bar = $('owe-bar');
+  bar.hidden = !(PLEDGES_ON && total > 0);
+  if (!bar.hidden) bar.innerHTML = `<span>You owe <b>${rupees(total * 100)}</b> to ${esc(PLEDGE_CHARITY.name)} for a broken pledge.</span><span class="owe-go">Pay now</span>`;
+}
+
+function renderPay() {
+  const { open, total } = owed(state.fines);
+  $('pay-card').hidden = !total;
+  $('pay-sub').textContent = total
+    ? (open.length === 1 ? 'One broken pledge.' : open.length + ' broken pledges, paid together.') + ' The money goes straight to the charity.'
+    : 'Nothing to pay. Every pledge is settled.';
+  if (total) {
+    $('pay-amt').textContent = rupees(total * 100);
+    $('pay-name').textContent = PLEDGE_CHARITY.name;
+    $('pay-upi').textContent = PLEDGE_CHARITY.upi;
+    const qr = window.qrcode(0, 'M');
+    qr.addData(upiLink(total, 'Still focus pledge'));
+    qr.make();
+    $('pay-qr').innerHTML = qr.createSvgTag({ cellSize: 5, margin: 2, scalable: true });
+    $('pay-qr').setAttribute('aria-label', 'UPI QR code to pay ' + rupees(total * 100) + ' to ' + PLEDGE_CHARITY.name);
+  }
+  const rows = state.fines.slice().sort((a, b) => b.at - a.at).slice(0, 20);
+  $('pay-list').hidden = !rows.length;
+  $('pay-list').innerHTML = '<h2 class="h2">Pledges you broke</h2>' + rows.map((f) => `<div class="fine-row">
+    <div><b>${esc(f.task)}</b><span class="muted small">${fmtWhen(f.at)}${f.site ? ' · ' + esc(f.site) : ''}</span></div>
+    <span class="fine-amt">${rupees(f.amount * 100)}</span>
+    <span class="fine-state ${f.paid ? 'paid' : ''}">${f.paid ? 'Paid' : 'Owed'}</span></div>`).join('');
+}
+
+$('pay-copy').addEventListener('click', async () => {
+  try { await navigator.clipboard.writeText(PLEDGE_CHARITY.upi); toast('UPI ID copied.'); } catch (e) { toast('Could not copy. Select it instead.'); }
+});
+$('pay-done').addEventListener('click', async () => {
+  const ref = $('pay-ref').value.trim();
+  if (!/^[A-Za-z0-9]{6,30}$/.test(ref)) { toast('Paste the UPI reference from your payment app first.'); $('pay-ref').focus(); return; }
+  const { open, total } = owed(state.fines);
+  if (!open.length) return;
+  await send('markFinesPaid', { ids: open.map((f) => f.id), ref });
+  state = await getAll();
+  $('pay-ref').value = '';
+  renderNav();
+  renderPay();
+  toast(rupees(total * 100) + ' to ' + PLEDGE_CHARITY.name + ' is settled. Thank you.');
+});
+
 // ---------- block now ----------
 
 const BN_OPTS = [
@@ -778,6 +867,7 @@ function setRadio(selector, attr, value) {
 
 function renderSettings() {
   const { settings, calendar } = state;
+  renderPledge();
   const pledgeRows = WALLET_ENABLED ? renderWalletRows() : '';
   $('wallet-rows').innerHTML = pledgeRows;
   $('wallet-rows').hidden = !pledgeRows;
@@ -1356,6 +1446,8 @@ chrome.storage.onChanged.addListener(async (changes, area) => {
   if ((changes.calendar || changes.settings || changes.block || changes.wallet || changes.calEvents || changes.pledges) && (v === 'settings' || v === 'block')) renderSettings();
   if ((changes.calendar || changes.calEvents || changes.settings) && v === 'setup' && !state.session) renderSetup();
   if ((changes.lastSummary || changes.progress) && v === 'summary') renderSummary();
+  if (changes.fines && v === 'pay') renderPay();
+  if (changes.fines && v === 'block') renderSettings();
   if ((changes.progress || changes.history || changes.parked) && v === 'insights') renderInsights();
   if (changes.prefs && v === 'setup' && !state.session) renderSetup();
 });

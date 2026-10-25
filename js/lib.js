@@ -17,6 +17,19 @@ export const WALLET_ENABLED = false;
 export const WALLET_API = '';
 
 export const PLEDGES = [0, 20, 50, 100, 200];
+
+// Focus pledges, paid straight to one charity. Still never holds the money: a broken
+// pledge is written down here, and the user pays the charity's own UPI ID from their
+// phone. Pledges stay hidden until the charity's official UPI ID is filled in.
+export const PLEDGE_CHARITY = { name: '', upi: '' };
+export const PLEDGES_ON = !!PLEDGE_CHARITY.upi;
+export const PLEDGE_AMOUNTS = [20, 50, 100];
+
+// The UPI payment link for a fine, with the amount and a note filled in.
+export function upiLink(amount, note) {
+  const q = new URLSearchParams({ pa: PLEDGE_CHARITY.upi, pn: PLEDGE_CHARITY.name, am: String(amount), cu: 'INR', tn: note || 'Still focus pledge' });
+  return 'upi://pay?' + q.toString().replace(/\+/g, '%20');
+}
 export const CHARITIES = ['Akshaya Patra', 'GiveIndia', 'CRY'];
 
 export const DEFAULT_SETTINGS = {
@@ -33,6 +46,7 @@ export const DEFAULT_SETTINGS = {
   googleClientId: '',
   walletApi: '',
   pledge: 50,
+  pledgeOn: false,   // focus pledges are opt-in
   taskAllow: {},   // calendar task name (lowercase) -> sites that task may open
   charity: CHARITIES[0]
 };
@@ -92,7 +106,7 @@ export function uid() {
 }
 
 export async function getAll() {
-  const r = await chrome.storage.local.get(['settings', 'prefs', 'session', 'parked', 'lastSummary', 'calendar', 'history', 'seenWelcome', 'block', 'wallet', 'pledges', 'calEvents', 'progress', 'firstUsed']);
+  const r = await chrome.storage.local.get(['settings', 'prefs', 'session', 'parked', 'lastSummary', 'calendar', 'history', 'seenWelcome', 'block', 'wallet', 'pledges', 'calEvents', 'progress', 'firstUsed', 'fines']);
   return {
     settings: Object.assign({}, DEFAULT_SETTINGS, r.settings || {}),
     prefs: Object.assign({}, DEFAULT_PREFS, r.prefs || {}),
@@ -106,6 +120,7 @@ export async function getAll() {
     block: r.block || null,
     wallet: r.wallet || { signedIn: false, email: '', balancePaise: 0, txns: [] },
     pledges: r.pledges || {},
+    fines: r.fines || [],
     calEvents: r.calEvents || {},
     progress: r.progress || null
   };
@@ -138,9 +153,15 @@ export function rupees(paise) {
   return '₹' + (Number(paise || 0) / 100).toLocaleString('en-IN', { maximumFractionDigits: 2 });
 }
 
-// A calendar task's pledge is live once the block starts with enough money in the wallet.
+// A pledge is live from the moment its block starts until it ends or is broken.
 export function pledgeArmed(block) {
-  return !!(WALLET_ENABLED && block && block.pledge > 0 && !block.forfeited);
+  return !!((WALLET_ENABLED || PLEDGES_ON) && block && block.pledge > 0 && !block.forfeited);
+}
+
+// Broken pledges not paid yet, and their total in rupees.
+export function owed(fines) {
+  const open = (fines || []).filter((f) => !f.paid);
+  return { open, total: open.reduce((n, f) => n + f.amount, 0) };
 }
 
 export function fmtClock(ms) {
@@ -152,7 +173,7 @@ export function fmtClock(ms) {
 // Bump when background.js changes. Pages compare it with the running service worker,
 // because after a git pull Chrome serves the new pages but keeps the old worker until
 // the extension is reloaded.
-export const BUILD = '2026-10-24a';
+export const BUILD = '2026-10-25a';
 
 // A block with no end ("until I stop it") uses this as its end time.
 export const NO_END = 8.64e15;

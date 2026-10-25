@@ -77,7 +77,12 @@ export function mountSession(el) {
     else if (b.dataset.theme) session = (await send('setTheme', { theme: b.dataset.theme })) || session;
     else if (b.dataset.act === 'circle') { send('openCircle'); return; }
     else if (b.dataset.act === 'park') { send('openCapture'); return; }
-    else if (b.dataset.act === 'exit') { send('endSession'); return; }
+    else if (b.dataset.act === 'exit') {
+      // A pledged session asks once more, naming what breaking it costs.
+      const res = await send('endSession', { forfeit: b.dataset.confirm === '1' });
+      if (res && res.needsConfirm) { b.dataset.confirm = '1'; b.textContent = 'Exit anyway: owe ₹' + res.pledge; }
+      return;
+    }
     const focusKey = b.dataset.adj ? `[data-adj="${b.dataset.adj}"]` : b.dataset.theme ? `[data-theme="${b.dataset.theme}"]` : `[data-sound="${b.dataset.sound}"]`;
     render();
     const again = el.querySelector(focusKey);

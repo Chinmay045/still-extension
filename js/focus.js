@@ -81,8 +81,14 @@ async function back() {
 // End focus: stop the timer and show the summary.
 async function endFocus() {
   if (leaving) return;
-  const res = await send('endSession');
-  if (!res) reconnect('setup');
+  const b = $('end');
+  const res = await send('endSession', { forfeit: b.dataset.confirm === '1' });
+  if (!res) { reconnect('setup'); return; }
+  // A pledged session asks once more, naming what breaking it costs.
+  if (res.needsConfirm) {
+    b.dataset.confirm = '1';
+    b.textContent = 'End anyway: owe ₹' + res.pledge + ' to ' + res.charity;
+  }
 }
 
 chrome.storage.onChanged.addListener((c) => {

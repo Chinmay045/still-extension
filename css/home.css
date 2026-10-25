@@ -627,3 +627,34 @@ main:focus { outline: none; }
 .still-tour .driver-popover-close-btn { top: 8px; right: 8px; width: 30px; height: 30px; border-radius: 999px; color: var(--g5); font-size: 20px; }
 .still-tour .driver-popover-close-btn:hover { background: var(--track); color: var(--ink); }
 @media (prefers-reduced-motion: reduce) { .driver-popover.still-tour { animation: none; } }
+
+/* Focus pledge: settings card, the "you owe" bar on Focus, and the pay page. */
+.pledge-amt { display: flex; flex-direction: column; gap: 8px; }
+.owe-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 12px 14px 12px 16px; border-radius: 14px; background: var(--lav); border: 1px solid var(--lav-border); font-size: 14.5px; }
+.owe-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; padding: 12px 16px; border-radius: 14px; background: #FFF6E5; border: 1px solid #F3DDAE; color: #6B4A00; font-size: 14.5px; text-decoration: none; }
+.owe-bar b { color: #4A3300; }
+.owe-bar .owe-go { font-weight: 600; white-space: nowrap; }
+.owe-bar:hover { border-color: #E8C77C; }
+.owe-bar:focus-visible { outline: none; box-shadow: var(--ring); }
+.pay-card { display: grid; grid-template-columns: 220px 1fr; gap: 28px; align-items: start; }
+.pay-qr { width: 220px; height: 220px; padding: 10px; border-radius: 16px; background: #FFFFFF; border: 1px solid var(--g2); }
+.pay-qr svg { display: block; width: 100%; height: 100%; }
+.pay-info { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.pay-amt { font-family: 'Inter Tight', sans-serif; font-size: 40px; font-weight: 600; letter-spacing: -0.03em; line-height: 1; color: var(--ink); }
+.pay-to { font-size: 15px; color: var(--g5); }
+.pay-to b { color: var(--ink); }
+.pay-upi { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.pay-upi code { font-size: 14px; padding: 4px 10px; border-radius: 8px; background: var(--track); color: var(--ink); }
+.pay-steps { margin: 4px 0 0; padding-left: 20px; display: flex; flex-direction: column; gap: 4px; font-size: 14px; line-height: 1.45; color: var(--g4); }
+.fine-row { display: grid; grid-template-columns: 1fr auto 64px; align-items: center; gap: 14px; padding: 12px 0; border-top: 1px solid var(--g1); }
+.fine-row:first-of-type { border-top: 0; }
+.fine-row b { display: block; font-weight: 600; font-size: 14.5px; }
+.fine-row span.small { display: block; }
+.fine-amt { font-weight: 600; font-variant-numeric: tabular-nums; }
+.fine-state { justify-self: end; font-size: 12.5px; font-weight: 600; padding: 3px 10px; border-radius: 999px; background: #FFF6E5; color: #8A5A00; }
+.fine-state.paid { background: #EAF7EE; color: #1E7B3A; }
+#pay-list { display: flex; flex-direction: column; gap: 4px; margin-top: 16px; }
+@media (max-width: 640px) {
+  .pay-card { grid-template-columns: 1fr; }
+  .pay-qr { margin: 0 auto; }
+}

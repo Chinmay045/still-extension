@@ -115,6 +115,7 @@
 
 <!-- SETUP -->
 <section class="view page focus-page" id="view-setup" hidden>
+  <a class="owe-bar" id="owe-bar" href="#pay" hidden></a>
   <header class="page-head">
     <h1 id="setup-h1">What will you focus on?</h1>
     <p class="muted" id="setup-sub">One task. A little time. Start.</p>
@@ -205,6 +206,18 @@
     <div class="toggle-row"><div><b id="t-sessblock-l">Block during focus sessions</b><span class="muted small">From when the timer starts until it ends.</span></div><button class="switch" role="switch" data-toggle="sessionBlock" aria-labelledby="t-sessblock-l"></button></div>
     <div class="toggle-row"><div><b id="t-calblock-l">Block during calendar tasks</b><span class="muted small" id="block-state">Needs Google Calendar connected.</span></div><button class="switch" role="switch" data-toggle="calendarBlock" aria-labelledby="t-calblock-l"></button></div>
     <div class="int-actions" id="block-actions"></div>
+  </div>
+
+  <div class="card pad set-sec" id="pledge-card" hidden>
+    <h2 class="h2">Focus pledge</h2>
+    <div class="toggle-row"><div><b id="t-pledge-l">Put money on my focus</b><span class="muted small" id="pledge-note"></span></div>
+      <button class="switch" role="switch" id="t-pledge" aria-labelledby="t-pledge-l" aria-checked="false"></button></div>
+    <div class="pledge-amt" id="pledge-amt-wrap">
+      <span class="label" id="pledge-amt-l">Amount per session or task</span>
+      <div class="seg" role="radiogroup" aria-labelledby="pledge-amt-l" id="pledge-amt"></div>
+    </div>
+    <p class="muted small" id="pledge-how"></p>
+    <div class="owe-row" id="pledge-owe" hidden></div>
   </div>
 
   <div class="card pad set-sec">
@@ -365,6 +378,32 @@
   </div>
 </section>
 
+<!-- PAY -->
+<section class="view page pay-page" id="view-pay" hidden>
+  <header class="page-head">
+    <h1>Pay your pledge</h1>
+    <p class="muted" id="pay-sub"></p>
+  </header>
+  <div class="card pad pay-card" id="pay-card">
+    <div class="pay-qr" id="pay-qr" role="img"></div>
+    <div class="pay-info">
+      <div class="pay-amt" id="pay-amt"></div>
+      <div class="pay-to">to <b id="pay-name"></b></div>
+      <div class="pay-upi"><span class="muted small">UPI ID</span><code id="pay-upi"></code><button type="button" class="btn btn-sm btn-ghost" id="pay-copy">Copy</button></div>
+      <ol class="pay-steps">
+        <li>Scan the code with any UPI app (GPay, PhonePe, Paytm). The amount is filled in.</li>
+        <li>Pay. The money goes straight to the charity, never through <span class="still-word">Still</span>.</li>
+        <li>Paste the UPI reference number below.</li>
+      </ol>
+      <div class="add-row">
+        <input class="input" id="pay-ref" placeholder="UPI reference, like 412345678901" autocomplete="off" inputmode="numeric" aria-label="UPI reference number">
+        <button class="btn btn-primary" type="button" id="pay-done">I've paid</button>
+      </div>
+    </div>
+  </div>
+  <div class="card pad" id="pay-list"></div>
+</section>
+
 <!-- SUMMARY -->
 <section class="view page" id="view-summary" hidden>
   <div id="summary"></div>
@@ -373,6 +412,7 @@
 </main>
 <div class="toast" id="toast" role="status" hidden></div>
 <script src="js/vendor/driver.js.iife.js"></script>
+<script src="js/vendor/qrcode.js"></script>
 <script type="module" src="js/home.js"></script>
 </body>
 </html>

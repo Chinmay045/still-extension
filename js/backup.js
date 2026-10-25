@@ -3,7 +3,7 @@
 // Importing merges, never replaces, so importing the same file twice changes nothing.
 import { emptyProgress, dayKey, localOffset } from './progress.js';
 
-export const BACKUP_KEYS = ['settings', 'prefs', 'parked', 'history', 'progress', 'firstUsed', 'lastSummary', 'seenWelcome'];
+export const BACKUP_KEYS = ['settings', 'prefs', 'parked', 'history', 'progress', 'firstUsed', 'lastSummary', 'seenWelcome', 'fines'];
 
 // Settings that belong to one install and must not travel with the file.
 const LOCAL_ONLY_SETTINGS = ['googleClientId', 'walletApi', 'calendarConnected'];
@@ -90,7 +90,16 @@ export function mergeBackup(cur, inc) {
   for (const s of (inc.settings && inc.settings.sites) || []) if (!sites.includes(s)) { sites.push(s); newSites += 1; }
   settings.sites = sites;
 
-  const out = { history, parked, progress, firstUsed, settings, seenWelcome: !!(cur.seenWelcome || inc.seenWelcome) };
+  // Broken pledges: one per id, and a payment recorded on either side counts.
+  const fines = (cur.fines || []).map((f) => Object.assign({}, f));
+  for (const f of inc.fines || []) {
+    if (!f || !f.id) continue;
+    const mine = fines.find((x) => x.id === f.id);
+    if (!mine) fines.push(Object.assign({}, f));
+    else if (f.paid && !mine.paid) Object.assign(mine, { paid: true, paidAt: f.paidAt, ref: f.ref });
+  }
+
+  const out = { history, parked, progress, firstUsed, settings, fines, seenWelcome: !!(cur.seenWelcome || inc.seenWelcome) };
   if (!cur.lastSummary && inc.lastSummary) out.lastSummary = inc.lastSummary;
   return { values: out, added: { sessions: newHistory.length, thoughts: newParked.length, sites: newSites } };
 }

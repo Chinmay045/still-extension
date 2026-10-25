@@ -129,7 +129,13 @@
     if (!b) return;
     if (b.dataset.act === 'toggle') { open = !open; render('[data-act="toggle"]'); return; }
     if (b.dataset.act === 'park') { send('openCapture'); open = false; render(); return; }
-    if (b.dataset.act === 'exit') { send('endSession'); return; }
+    if (b.dataset.act === 'exit') {
+      // A pledged session asks once more, naming what breaking it costs.
+      send('endSession', { forfeit: b.dataset.confirm === '1' }).then((res) => {
+        if (res && res.needsConfirm) { b.dataset.confirm = '1'; b.textContent = 'Exit anyway: owe ₹' + res.pledge; }
+      });
+      return;
+    }
     if (b.dataset.adj) send('adjustTime', { deltaMin: Number(b.dataset.adj) });
     if (b.dataset.sound) send('setSound', { sound: b.dataset.sound });
     render(b.dataset.adj ? `[data-adj="${b.dataset.adj}"]` : `[data-sound="${b.dataset.sound}"]`);

@@ -4,7 +4,7 @@
 // session's timer runs, and from a synced calendar task's start to its end.
 import { applySession, localOffset } from './js/progress.js';
 import { readBackup, mergeBackup } from './js/backup.js';
-import { getAll, patch, kindOf, taskKey, uid, normalizeDomain, fmtTime, untilText, NO_END, rupees, pledgeArmed, BUILD, GOOGLE_CLIENT_ID, WALLET_API, WALLET_ENABLED, THEMES, SOUNDS } from './js/lib.js';
+import { getAll, patch, kindOf, taskKey, uid, normalizeDomain, fmtTime, untilText, NO_END, rupees, pledgeArmed, BUILD, GOOGLE_CLIENT_ID, WALLET_API, WALLET_ENABLED, PLEDGES_ON, PLEDGE_CHARITY, THEMES, SOUNDS } from './js/lib.js';
 
 const CAPTURE_W = 360;
 const CAPTURE_H = 400;
@@ -339,6 +339,10 @@ async function adjustTime(deltaMin) {
   if (session.phase !== 'working') {
     session.plannedMin = Math.max(1, Math.min(240, session.plannedMin + deltaMin));
   } else {
+    if (deltaMin < 0) {
+      const { block } = await getAll();
+      if (block && block.eventId === 'session:' + session.id && pledgeArmed(block)) return session;
+    }
     session.endsAt = Math.max(Date.now() + 60000, session.endsAt + deltaMin * 60000);
     session.plannedMin = Math.max(1, Math.round((session.endsAt - session.startedAt) / 60000));
     chrome.alarms.create('session-end', { when: session.endsAt });
@@ -711,15 +715,15 @@ async function startBlock(e) {
     sites: settings.sites.slice(),
     evStart: e.start,
     allow: allowFor(e, settings),
-    // Pledges belong to calendar tasks; a focus session's block never puts money on the line.
-    ...(e.session || e.manual ? { pledge: 0 } : await pledgeFor(e, settings))
+    // Focus sessions and calendar tasks can carry a pledge; Block now and tests never do.
+    ...(e.manual || e.test || (e.session && !PLEDGES_ON) ? { pledge: 0 } : await pledgeFor(e, settings))
   };
   await chrome.storage.local.set({ block: next });
   await applyBlocking(blockSites(next, settings));
   await sweepTabs(blockSites(next, settings));
   armBlockEnd(next.end);
   const id = 'block|' + Date.now();
-  const stake = next.pledge ? ' ' + rupees(next.pledge * 100) + ' is on the line.' : next.pledgeShort ? ' Your wallet is too low for the ' + rupees(next.pledgeShort * 100) + ' pledge, so none is set.' : '';
+  const stake = next.pledge ? ' ' + rupees(next.pledge * 100) + (PLEDGES_ON ? ' for ' + next.charity + ' if you break it.' : ' is on the line.') : next.pledgeShort ? ' Your wallet is too low for the ' + rupees(next.pledgeShort * 100) + ' pledge, so none is set.' : '';
   chrome.notifications.create(id, {
     type: 'basic',
     iconUrl: ICON,
@@ -876,6 +880,37 @@ async function stopManual() {
 // ---------- focus wallet ----------
 // A prepaid balance kept on the wallet server (backend/). The extension never moves
 // money itself: it asks the server to take a task's pledge after the user confirms
+// Writes a broken pledge down as owed to the charity. One fine per block, ever.
+async function owePledge(block, site) {
+  const { fines, block: cur } = await getAll();
+  const out = {};
+  if (!fines.some((f) => f.id === block.key)) {
+    out.fines = fines.concat({ id: block.key, amount: block.pledge, task: block.title, site: site || '', charity: block.charity || PLEDGE_CHARITY.name, at: Date.now(), paid: false });
+  }
+  if (cur && cur.key === block.key) out.block = Object.assign(cur, { forfeited: true, forfeitedAt: Date.now() });
+  await chrome.storage.local.set(out);
+  return { ok: true };
+}
+
+// The user paid the charity themselves: record the UPI reference against the fines.
+async function markFinesPaid(ids, ref) {
+  const { fines } = await getAll();
+  const now = Date.now();
+  const next = fines.map((f) => (ids.includes(f.id) && !f.paid ? Object.assign({}, f, { paid: true, paidAt: now, ref: String(ref || '').trim().slice(0, 40) }) : f));
+  await chrome.storage.local.set({ fines: next });
+  return { ok: true };
+}
+
+// Ending a pledged focus session early breaks the pledge, so it asks once more first.
+async function exitSession(forfeit) {
+  const { session, block } = await getAll();
+  if (session && session.phase === 'working' && block && block.eventId === 'session:' + session.id && pledgeArmed(block)) {
+    if (!forfeit) return { needsConfirm: true, pledge: block.pledge, charity: block.charity };
+    await takePledge(block, 'ended focus early');
+  }
+  return endSession('exit');
+}
+
 // "Break the task" on the block page, and the server refuses to go below zero.
 
 async function walletBase() {
@@ -984,6 +1019,8 @@ async function walletOpen(hash) {
 // Decides a new task's pledge: its own amount if set in Settings, else the default.
 // Only armed when the wallet can cover it, so a pledge is never an empty threat.
 async function pledgeFor(e, settings) {
+  // Direct-to-charity pledges: the set amount, nothing to check first.
+  if (PLEDGES_ON) return settings.pledgeOn && settings.pledge > 0 ? { pledge: Number(settings.pledge), charity: PLEDGE_CHARITY.name } : { pledge: 0 };
   if (!WALLET_ENABLED) return { pledge: 0 };
   const { wallet, pledges } = await getAll();
   if (!wallet.signedIn) return { pledge: 0 };
@@ -996,6 +1033,7 @@ async function pledgeFor(e, settings) {
 }
 
 async function takePledge(block, site) {
+  if (PLEDGES_ON) return owePledge(block, site);
   const r = await walletFetch('/api/forfeit', {
     amount: block.pledge,
     taskKey: block.key,
@@ -1408,7 +1446,8 @@ const handlers = {
   setTheme: (m) => setTheme(m.theme),
   openCircle: () => openCircle(),
   setVolume: (m) => setVolume(Number(m.volume)),
-  endSession: () => endSession('exit'),
+  endSession: (m) => exitSession(!!m.forfeit),
+  markFinesPaid: (m) => markFinesPaid(Array.isArray(m.ids) ? m.ids : [], m.ref),
   exitCircle: (m, sender) => exitCircle(sender.tab ? sender.tab.id : null),
   setLength: (m) => setLength(Number(m.minutes) || 10),
   testBlock: () => testBlock(),

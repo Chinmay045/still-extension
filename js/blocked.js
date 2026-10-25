@@ -1,4 +1,4 @@
-import { getAll, send, fmtTime, untilText, rupees, pledgeArmed } from './lib.js';
+import { getAll, send, fmtTime, untilText, rupees, pledgeArmed, PLEDGES_ON } from './lib.js';
 
 const $ = (id) => document.getElementById(id);
 const url = (() => {
@@ -36,7 +36,9 @@ async function init() {
   if (pledgeArmed(block)) {
     const amt = rupees(block.pledge * 100);
     $('stake-title').textContent = amt + ' is on the line for this task';
-    $('stake-sub').textContent = 'Stay with it until ' + fmtTime(block.end) + ' and it stays in your wallet.';
+    $('stake-sub').textContent = PLEDGES_ON
+      ? 'Stay with it until ' + fmtTime(block.end) + ' and you owe nothing. Break it and you pay ' + block.charity + '.'
+      : 'Stay with it until ' + fmtTime(block.end) + ' and it stays in your wallet.';
     $('stake-amt').textContent = amt;
     $('stake').hidden = false;
     $('open').textContent = 'Break the task';
@@ -45,7 +47,9 @@ async function init() {
   }
   if (pledgeArmed(Object.assign({}, block, { forfeited: false })) && block.forfeited) {
     $('stake-title').textContent = 'You broke this task earlier';
-    $('stake-sub').textContent = rupees(block.pledge * 100) + ' left your wallet for ' + block.charity + '. Nothing more is taken for this task.';
+    $('stake-sub').textContent = PLEDGES_ON
+      ? 'You owe ' + rupees(block.pledge * 100) + ' to ' + block.charity + '. Nothing more is added for this task.'
+      : rupees(block.pledge * 100) + ' left your wallet for ' + block.charity + '. Nothing more is taken for this task.';
     $('stake-amt').textContent = '−' + rupees(block.pledge * 100);
     $('stake').hidden = false;
   }
@@ -72,9 +76,14 @@ async function init() {
 // The take button unlocks after a few seconds so a reflex click can't spend money.
 function showConfirm(block, wallet, host) {
   const amt = rupees(block.pledge * 100);
-  $('confirm-h').textContent = 'Break "' + block.title + '" and lose ' + amt + '?';
+  $('confirm-h').textContent = 'Break "' + block.title + '" and ' + (PLEDGES_ON ? 'owe ' : 'lose ') + amt + '?';
   const after = Math.max(0, wallet.balancePaise - block.pledge * 100);
-  const rows = [
+  const rows = PLEDGES_ON ? [
+    ['You owe', amt],
+    ['Goes to', block.charity],
+    ['You pay', 'by UPI, straight to them'],
+    ['Then opens', host + ', once']
+  ] : [
     ['Leaves your wallet', amt],
     ['Balance after', rupees(after)],
     ['Set aside for', block.charity || 'charity'],
@@ -93,11 +102,13 @@ function showConfirm(block, wallet, host) {
   document.querySelector('.row').hidden = true;
   document.querySelector('.actions').hidden = true;
   $('confirm').hidden = false;
+  if (PLEDGES_ON) $('keep').textContent = 'Back to work, owe nothing';
   $('keep').focus();
   let left = 5;
   const lose = $('lose');
   const tick = () => {
-    lose.textContent = left > 0 ? 'Take ' + amt + ' and open (' + left + ')' : 'Take ' + amt + ' and open';
+    const verb = PLEDGES_ON ? 'Owe ' : 'Take ';
+    lose.textContent = left > 0 ? verb + amt + ' and open (' + left + ')' : verb + amt + ' and open';
     lose.disabled = left > 0;
     if (left-- <= 0) clearInterval(timer);
   };
@@ -106,11 +117,11 @@ function showConfirm(block, wallet, host) {
   lose.onclick = async () => {
     lose.disabled = true;
     $('keep').disabled = true;
-    lose.textContent = 'Taking ' + amt + '…';
+    lose.textContent = PLEDGES_ON ? 'Opening…' : 'Taking ' + amt + '…';
     $('lose-err').hidden = true;
     const res = await send('breakTask', { url });
     if (res && res.ok) {
-      $('over').textContent = amt + ' taken. Opening ' + host + '.';
+      $('over').textContent = (PLEDGES_ON ? 'You owe ' + amt + '. Pay it from Still when you can. Opening ' : amt + ' taken. Opening ') + host + '.';
       return;
     }
     $('keep').disabled = false;
